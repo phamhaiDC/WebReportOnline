@@ -1,0 +1,105 @@
+[
+  {
+    "label": "ReferenceServer",
+    "url": "https://61.28.227.20:3988/References",
+    "user": "httpapi",
+    "pass": "1",
+    "isMaster": true
+  },
+  {
+    "label": "VTI_TRS_FULLSYNC01",
+    "url": "https://61.28.235.59:4501/References",
+    "user": "httpapi",
+    "pass": "1"
+  },
+  {
+    "label": "VTI_TRS_FULLSYNC02",
+    "url": "https://61.28.235.59:4502/References",
+    "user": "httpapi",
+    "pass": "1"
+  },
+  {
+    "label": "VTI_TRS_FULLSYNC03",
+    "url": "https://61.28.235.59:4503/References",
+    "user": "httpapi",
+    "pass": "1"
+  },
+  {
+    "label": "VTI_TRS_FULLSYNC07",
+    "url": "https://61.28.235.59:4507/References",
+    "user": "httpapi",
+    "pass": "1"
+  },
+  {
+    "label": "VTI_TRS_FULLSYNC04",
+    "url": "https://61.28.238.121:4504/References",
+    "user": "httpapi",
+    "pass": "1"
+  },
+  {
+    "label": "VTI_TRS_FULLSYNC05",
+    "url": "https://61.28.238.121:4505/References",
+    "user": "httpapi",
+    "pass": "1"
+  },
+  {
+    "label": "VTI_TRS_FULLSYNC06",
+    "url": "https://61.28.238.121:4506/References",
+    "user": "httpapi",
+    "pass": "1"
+  },
+  {
+    "label": "VTI_TRS_FULLSYNC08",
+    "url": "https://61.28.238.121:4508/References",
+    "user": "httpapi",
+    "pass": "1"
+  },
+  {
+    "label": "VTI_TRS_CENTRAL01",
+    "url": "https://116.118.95.207:4031/References",
+    "user": "httpapi",
+    "pass": "1"
+  },
+  {
+    "label": "VTI_TRS_CENTRAL02",
+    "url": "https://116.118.95.207:4032/References",
+    "user": "httpapi",
+    "pass": "1"
+  },
+  {
+    "label": "VTI_TRS_NORTH01",
+    "url": "https://116.118.95.207:4021/References",
+    "user": "httpapi",
+    "pass": "1"
+  },
+  {
+    "label": "VTI_TRS_NORTH02",
+    "url": "https://116.118.95.207:4022/References",
+    "user": "httpapi",
+    "pass": "1"
+  },
+  {
+    "label": "VTI_TRS_NORTH03",
+    "url": "https://116.118.95.207:4023/References",
+    "user": "httpapi",
+    "pass": "1"
+  },
+  {
+    "label": "VTI_TRS_SOUTH01",
+    "url": "https://116.118.95.207:4041/References",
+    "user": "httpapi",
+    "pass": "1"
+  },
+  {
+    "label": "VTI_TRS_SOUTH02",
+    "url": "https://116.118.95.207:4042/References",
+    "user": "httpapi",
+    "pass": "1"
+  },
+  {
+    "label": "VTI_TRS_SOUTH03",
+    "url": "https://116.118.95.207:4043/References",
+    "user": "httpapi",
+    "pass": "1"
+  }
+]

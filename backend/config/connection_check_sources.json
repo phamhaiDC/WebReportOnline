@@ -1,0 +1,39 @@
+[
+  {
+    "networkName": "VTI_REF_PROD",
+    "ip": "61.28.227.20",
+    "port": 3988,
+    "user": "httpapi",
+    "pass": "1",
+    "isRoot": true,
+    "label": "Reference Server PROD"
+  },
+  {
+    "networkName": "VTI_CRS_CENTRAL01",
+    "ip": "116.118.95.207",
+    "port": 5021,
+    "user": "httpapi",
+    "pass": "1",
+    "isRoot": false,
+    "label": "Report Server North 01"
+  },
+  {
+    "networkName": "VTI_TRS_CENTRAL01",
+    "ip": "116.118.95.207",
+    "port": 4031,
+    "user": "httpapi",
+    "pass": "1",
+    "isRoot": false,
+    "label": "Report Trasnit Central 01"
+  }
+  ,
+  {
+    "networkName": "VTI_TRS_CENTRAL02",
+    "ip": "116.118.95.207",
+    "port": 4032,
+    "user": "httpapi",
+    "pass": "1",
+    "isRoot": false,
+    "label": "Report Trasnit Central 02"
+  }
+]
