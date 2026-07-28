@@ -289,6 +289,13 @@ router.get('/', async (req, res) => {
                         description: 'Phân tích số lượng coupon sử dụng theo giờ, theo dõi online, so sánh nhiều ngày (server Ecode)',
                         isDashboard: true,
                         parameters: []
+                    },
+                    {
+                        id: 'ecode_check',
+                        name: 'Ecode Check',
+                        description: 'Tra cứu nhanh tình trạng sử dụng 1 coupon theo mã ecode (server CRM)',
+                        isDashboard: true,
+                        parameters: []
                     }
                 ]
             },

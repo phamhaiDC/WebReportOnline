@@ -12,6 +12,7 @@
   "dependencies": {
     "@superset-ui/embedded-sdk": "^0.4.0",
     "axios": "^1.13.2",
+    "lucide-react": "^1.27.0",
     "react": "^19.2.0",
     "react-diff-viewer-continued": "^4.4.0",
     "react-dom": "^19.2.0",

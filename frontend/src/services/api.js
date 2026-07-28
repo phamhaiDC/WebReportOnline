@@ -53,6 +53,9 @@ export const getEcodeDailyTrend = (days = 14) =>
 export const getEcodeMonthly = (year = new Date().getFullYear()) =>
     api.get('/ecode/coupon-usage/monthly', { params: { year } }).then(r => r.data);
 
+export const getEcodeCheck = (ecode) =>
+    api.get('/ecode/coupon-check', { params: { ecode } }).then(r => r.data);
+
 export const getSupersetGuestToken = () =>
     api.get('/superset-guest-token').then(r => r.data);
 
@@ -67,5 +70,11 @@ export const getScriptChangelogScript = (ident) =>
 
 export const getScriptChangelogHistory = (ident) =>
     api.get(`/script-changelog/scripts/${ident}/history`).then(r => r.data);
+
+export const getRk7UsageFilterTypes = () =>
+    api.get('/reports/rk7-usage/filtertypes').then(r => r.data);
+
+export const getRk7Usage = (filtertype) =>
+    api.get('/reports/rk7-usage/usage', { params: { filtertype } }).then(r => r.data);
 
 export default api;

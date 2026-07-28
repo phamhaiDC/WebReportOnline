@@ -59,6 +59,15 @@ Không thuộc menu report động — mục cố định "System Check" trong S
 - Có chống lặp vô hạn (`cycle_detected`), giới hạn độ sâu (`max_depth_reached`, mặc định 6), và không để 1 nhánh lỗi (`unreachable`) làm hỏng cả cây.
 - Chi tiết đầy đủ: xem mục "Connections Monitor" trong [Backend](./01-backend.md).
 
+## 8c. Tính năng hệ thống — RK7 Usage
+Không thuộc menu report động — mục cố định "System Check" trong Sidebar, cùng nhóm với SQL Server Health Check và Connections Monitor.
+- Hiển thị cấu hình **Object Usage (filter)** của hệ thống RK7, đọc trực tiếp từ view `dbo.v_object_usage` (instance `RK7_VTI`, dùng chung `config/db.js`).
+- Sidebar trái liệt kê các **FilterType** đang có dữ liệu (tên loại + số dòng); chọn 1 FilterType để xem chi tiết bên phải.
+- Nội dung bên phải sắp theo `PRIORITY` tăng dần; phân cấp dựa **hoàn toàn vào cột `PARENTOBJECT`** (không dùng chuỗi `ObjectParentName` để quyết định phân cấp) — `PARENTOBJECT <> 0` gom nhóm dưới header cha (`ObjectParentName`, thu gọn/mở rộng được), `PARENTOBJECT = 0` hiển thị ngang hàng.
+- Cột mặc định: `ObjectName`, `PRIORITY`, `FILTER_RESTAURANT`, `FILTER_PERIOD`, `FILTER_STARTAT`, `FILTER_STOPAT`; toàn bộ cột `FILTER_*` còn lại ẩn mặc định, bật/tắt qua dropdown "Chọn cột". `FILTER_STARTAT`/`FILTER_STOPAT` là `datetime` (định dạng `dd/MM/yyyy HH:mm`, coi mốc rỗng Delphi `1899-12-30` là "—"); các `FILTER_*` khác là ID/bitmask, hiển thị raw ở v1.
+- Có ô tìm kiếm theo `ObjectName` trong FilterType đang xem.
+- Backend: `GET /api/reports/rk7-usage/filtertypes`, `GET /api/reports/rk7-usage/usage?filtertype=NN` (`backend/routes/rk7Usage.js`) — dùng `sql.Request().input(...)` tham số hóa, không tạo pool/connection mới, không thêm biến `.env`.
+
 ## 9. Tính năng ngang hàng (áp dụng cho hầu hết report dạng bảng)
 Không phải "report" riêng nhưng là năng lực dùng chung xuyên suốt UI:
 - Sort / filter (text, multi-select, numeric range) theo từng cột.

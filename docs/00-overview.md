@@ -44,10 +44,12 @@ WebReportOnline/
 │   ├── routes/
 │   │   ├── auth.js                 # POST /api/auth/login
 │   │   ├── reports.js              # GET/POST /api/reports/* (toàn bộ report + dashboard)
-│   │   └── healthcheck.js          # /api/healthcheck/* (health check SQL Server)
-│   └── services/healthcheck/
-│       ├── queries.js              # danh sách câu SQL health-check (A0–A8, B1–B9)
-│       └── thresholds.js           # ngưỡng đánh giá green/yellow/red cho từng metric
+│   │   ├── healthcheck.js          # /api/healthcheck/* (health check SQL Server)
+│   │   ├── connectionsMonitor.js   # /api/reports/connections-monitor/*
+│   │   └── rk7Usage.js             # /api/reports/rk7-usage/* (RK7 Usage — Object Usage filter)
+│   ├── .env                        # credentials thật — KHÔNG commit (đã thêm .gitignore)
+│   └── .env.example                # template biến môi trường, không chứa giá trị thật
+├── .gitignore
 └── frontend/
     └── src/
         ├── App.jsx                 # điều phối auth + routing giữa các trang
@@ -57,7 +59,23 @@ WebReportOnline/
             ├── Login.jsx
             ├── Sidebar.jsx
             ├── ReportViewer.jsx      # trang hiển thị report/dashboard chính (~2800 dòng)
-            └── HealthCheckPage.jsx   # trang health check SQL Server
+            ├── HealthCheckPage.jsx   # trang health check SQL Server
+            ├── ConnectionsMonitorPage.jsx
+            └── RK7UsagePage.jsx      # trang RK7 Usage — Object Usage (filter)
+```
+
+## Cách chạy (dev)
+```bash
+# Backend
+cd backend
+cp .env.example .env   # điền giá trị thật (xin từ người quản lý hạ tầng), .env đã nằm trong .gitignore
+npm install
+npm run dev             # nodemon, mặc định cổng 5577
+
+# Frontend (terminal khác)
+cd frontend
+npm install
+npm run dev              # Vite dev server
 ```
 
 ## Các file chi tiết khác
@@ -68,3 +86,4 @@ WebReportOnline/
 ## Lưu ý bảo mật khi mang tài liệu này sang project khác
 - `backend/config/masterdata_sources.json` và `backend/.env` chứa **địa chỉ IP nội bộ, tài khoản/mật khẩu** của các server RK7/DB thật. Các file này **không nên copy nguyên văn** sang project/tài liệu khác — chỉ tham khảo cấu trúc (schema), không tham khảo giá trị.
 - Endpoint `/api/auth/login` hiện dùng mật khẩu dạng plain-text khi gọi RK7 API (không hash) — cần lưu ý nếu tài liệu này dùng để bàn bạc về bảo mật/tái sử dụng ở nơi khác.
+- **Đã phát hiện**: `backend/.env` (chứa credential thật) hiện đang được **commit trong git** (từ commit đầu tiên của repo), và trước bản cập nhật này repo **chưa có `.gitignore`** nào (kể cả `node_modules/` cũng đang bị track). Đã thêm `.gitignore` + `.env.example` ở bản cập nhật này để chặn commit mới, nhưng **lịch sử git cũ vẫn còn chứa credential thật** — nên cân nhắc xoay vòng (rotate) mật khẩu các instance DB/Superset và dọn lịch sử git nếu repo này từng hoặc sẽ được chia sẻ ra ngoài.

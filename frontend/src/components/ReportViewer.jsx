@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import api, {
     getReportDetails,
-    getEcodeTodayLive, getEcodeHourly, getEcodeKpi, getEcodeHeatmap, getEcodeDailyTrend, getEcodeMonthly
+    getEcodeTodayLive, getEcodeHourly, getEcodeKpi, getEcodeHeatmap, getEcodeDailyTrend, getEcodeMonthly,
+    getEcodeCheck
 } from '../services/api';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
@@ -1657,6 +1658,149 @@ const EcodeUsingDashboard = () => {
     );
 };
 
+// ---------------------------------------------------------------------------
+// Ecode Check — Tra cứu nhanh tình trạng sử dụng 1 coupon theo ecode (server Ecode)
+// ---------------------------------------------------------------------------
+
+function EcodeCheckCopyButton({ row }) {
+    const [copied, setCopied] = useState(false);
+
+    const handleCopy = () => {
+        const text = `Ecode: ${row.COUPON_CODE ?? ''} | Store: ${row.STORE ?? ''} | Ngày: ${row.NGAY_SU_DUNG ?? ''} | Check: ${row.SO_CHECK ?? ''} | ${row.GHI_CHU ?? ''}`;
+        navigator.clipboard.writeText(text).then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+        });
+    };
+
+    return (
+        <button
+            onClick={handleCopy}
+            title="Copy dòng này"
+            style={{
+                border: 'none', background: copied ? '#dcfce7' : '#f3f4f6', color: copied ? '#16a34a' : '#374151',
+                borderRadius: '6px', padding: '4px 8px', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 600,
+                display: 'inline-flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap'
+            }}
+        >
+            {copied ? '✅ Đã copy' : '📋 Copy'}
+        </button>
+    );
+}
+
+const EcodeCheckDashboard = () => {
+    const [ecode, setEcode] = useState('');
+    const [results, setResults] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+
+    const handleEcodeChange = (e) => {
+        const digitsOnly = e.target.value.replace(/\D/g, '').slice(0, 13);
+        setEcode(digitsOnly);
+    };
+
+    const handleSearch = useCallback(() => {
+        if (!ecode) return;
+        setLoading(true);
+        setError(null);
+        getEcodeCheck(ecode)
+            .then(data => setResults(Array.isArray(data) ? data : []))
+            .catch(err => {
+                console.error('[EcodeCheckDashboard] lookup failed', err);
+                setError(err.response?.data?.msg || err.message || 'Tra cứu thất bại');
+                setResults(null);
+            })
+            .finally(() => setLoading(false));
+    }, [ecode]);
+
+    const handleKeyDown = (e) => {
+        if (e.key === 'Enter') handleSearch();
+    };
+
+    return (
+        <div style={{ padding: '1.5rem', background: '#f3f4f6', borderRadius: '12px' }}>
+            <div style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 600, marginBottom: '0.75rem' }}>
+                Coupon Check — Tra cứu tình trạng sử dụng theo Ecode · Server CRM
+            </div>
+
+            <div style={{ background: '#fff', borderRadius: '10px', boxShadow: '0 1px 6px rgba(0,0,0,.07)', padding: '16px', marginBottom: '1.5rem', borderTop: `3px solid ${ECODE_ACCENT}` }}>
+                <div style={{ fontSize: '0.8rem', fontWeight: 800, marginBottom: '10px' }}>Nhập Ecode</div>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <input
+                        type="text"
+                        inputMode="numeric"
+                        value={ecode}
+                        onChange={handleEcodeChange}
+                        onKeyDown={handleKeyDown}
+                        maxLength={13}
+                        placeholder="Nhập tối đa 13 chữ số"
+                        style={{
+                            flex: '1 1 240px', padding: '8px 12px', borderRadius: '7px', border: '1px solid #e5e7eb',
+                            fontFamily: "'DM Mono', monospace", fontSize: '0.9rem'
+                        }}
+                    />
+                    <button
+                        onClick={handleSearch}
+                        disabled={!ecode || loading}
+                        style={{
+                            border: 'none', borderRadius: '7px', padding: '8px 18px', fontWeight: 700, fontSize: '0.85rem',
+                            color: '#fff', background: (!ecode || loading) ? '#d1d5db' : ECODE_ACCENT,
+                            cursor: (!ecode || loading) ? 'not-allowed' : 'pointer'
+                        }}
+                    >
+                        {loading ? 'Đang tra cứu...' : 'Tra cứu'}
+                    </button>
+                </div>
+            </div>
+
+            {error && (
+                <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', borderRadius: '8px', padding: '0.6rem 1rem', fontSize: '0.8rem', marginBottom: '1rem' }}>
+                    ⚠ {error}
+                </div>
+            )}
+
+            {results && (
+                results.length === 0 ? (
+                    <div style={{ background: '#fff', borderRadius: '10px', boxShadow: '0 1px 6px rgba(0,0,0,.07)', padding: '2rem', textAlign: 'center', color: '#6b7280', fontSize: '0.85rem' }}>
+                        Không có dữ liệu trả về.
+                    </div>
+                ) : (
+                    <div style={{ background: '#fff', borderRadius: '10px', boxShadow: '0 1px 6px rgba(0,0,0,.07)', overflowX: 'auto' }}>
+                        <table style={{ minWidth: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+                            <thead style={{ backgroundColor: '#f9fafb' }}>
+                                <tr>
+                                    {['STORE', 'NGAY_SU_DUNG', 'SO_CHECK', 'MA_CODE', 'COUPON_ID', 'COUPON_CODE', 'FLAGS', 'GHI_CHU', ''].map((col, i) => (
+                                        <th key={col || `copy-${i}`} style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700, color: '#374151', borderBottom: '1px solid #e5e7eb', whiteSpace: 'nowrap' }}>
+                                            {col}
+                                        </th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {results.map((row, idx) => (
+                                    <tr key={idx} style={{ background: idx % 2 === 0 ? '#fff' : '#fafafa' }}>
+                                        <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6' }}>{row.STORE ?? ''}</td>
+                                        <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6' }}>{row.NGAY_SU_DUNG ?? ''}</td>
+                                        <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6' }}>{row.SO_CHECK ?? ''}</td>
+                                        <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6' }}>{row.MA_CODE ?? ''}</td>
+                                        <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6' }}>{row.COUPON_ID ?? ''}</td>
+                                        <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6', fontFamily: "'DM Mono', monospace" }}>{row.COUPON_CODE ?? ''}</td>
+                                        <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6' }}>{row.FLAGS ?? ''}</td>
+                                        <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6' }}>{row.GHI_CHU ?? ''}</td>
+                                        <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6' }}>
+                                            <EcodeCheckCopyButton row={row} />
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )
+            )}
+        </div>
+    );
+};
+
 class ErrorBoundary extends React.Component {
     constructor(props) {
         super(props);
@@ -2801,6 +2945,8 @@ const ReportViewerContent = ({ reportMeta }) => {
                                     </div>
                                 ) : reportMeta.id === 'ecode_using' ? (
                                     <EcodeUsingDashboard />
+                                ) : reportMeta.id === 'ecode_check' ? (
+                                    <EcodeCheckDashboard />
                                 ) : (
                                     <LatencyDashboard data={data} params={params} />
                                 )

@@ -6,14 +6,52 @@ import HealthCheckPage from './components/HealthCheckPage';
 import ConnectionsMonitorPage from './components/ConnectionsMonitorPage';
 import SupersetDashboardPage from './components/SupersetDashboardPage';
 import ScriptChangeLogsPage from './components/ScriptChangeLogsPage';
+import RK7UsagePage from './components/RK7UsagePage';
 import { getReports, login } from './services/api';
+
+// Bọc quanh nội dung report đang chọn — nếu component đó throw lúc render,
+// hiện thẳng lỗi (message + component stack) lên màn hình thay vì rơi về
+// trống/không phản ứng, để debug được ngay cả khi không mở được DevTools.
+class ReportErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null, errorInfo: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('[App] Report render crashed:', error, errorInfo);
+    this.setState({ errorInfo });
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{
+          padding: '1rem 1.25rem', background: '#fee2e2', border: '1px solid #fca5a5',
+          borderRadius: 8, color: '#991b1b', fontSize: '0.85rem',
+        }}>
+          <strong>⚠ Report "{this.props.reportId}" gặp lỗi khi render:</strong>
+          <div style={{ marginTop: '0.5rem', fontFamily: 'monospace', fontSize: '0.78rem', whiteSpace: 'pre-wrap' }}>
+            {this.state.error.toString()}
+            {this.state.errorInfo && `\n${this.state.errorInfo.componentStack}`}
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 function App() {
   const [user, setUser] = useState(null);
   const [reports, setReports] = useState([]);
   const [selectedReportId, setSelectedReportId] = useState(null);
   const [connectionError, setConnectionError] = useState(null);
-  const apiUrl = `${window.location.protocol}//${window.location.hostname}:5566/api/reports`;
+  const apiUrl = `${window.location.protocol}//${window.location.hostname}:5577/api/reports`;
 
   // Check localStorage for existing session on mount
   useEffect(() => {
@@ -40,6 +78,15 @@ function App() {
           setConnectionError(err.message || 'Failed to connect to backend');
         });
     }
+  }, [user]);
+
+  // Mặc định mở báo cáo "Dashboard" khi vừa đăng nhập (hoặc khôi phục session
+  // từ localStorage) — chỉ set khi chưa có báo cáo nào đang được chọn.
+  useEffect(() => {
+    if (user && !selectedReportId) {
+      setSelectedReportId('superset-dashboard');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const handleLogin = async (email, password) => {
@@ -139,19 +186,23 @@ function App() {
             <br />
             <span style={{ fontSize: '0.8rem', color: '#7f1d1d' }}>Trying to connect to: {apiUrl}</span>
             <br />
-            <span style={{ fontSize: '0.8rem' }}>Check your Firewall (Port 5566) or Backend Status.</span>
+            <span style={{ fontSize: '0.8rem' }}>Check your Firewall (Port 5577) or Backend Status.</span>
           </div>
         )}
-        {selectedReportId === 'sql-health-check'
-          ? <HealthCheckPage />
-          : selectedReportId === 'connections-monitor'
-          ? <ConnectionsMonitorPage />
-          : selectedReportId === 'superset-dashboard'
-          ? <SupersetDashboardPage />
-          : selectedReportId === 'script-changelog'
-          ? <ScriptChangeLogsPage />
-          : <ReportViewer reportMeta={selectedReport} />
-        }
+        <ReportErrorBoundary key={selectedReportId} reportId={selectedReportId}>
+          {selectedReportId === 'sql-health-check'
+            ? <HealthCheckPage />
+            : selectedReportId === 'connections-monitor'
+            ? <ConnectionsMonitorPage />
+            : selectedReportId === 'superset-dashboard'
+            ? <SupersetDashboardPage />
+            : selectedReportId === 'script-changelog'
+            ? <ScriptChangeLogsPage />
+            : selectedReportId === 'rk7-usage'
+            ? <RK7UsagePage />
+            : <ReportViewer reportMeta={selectedReport} />
+          }
+        </ReportErrorBoundary>
       </div>
     </div>
   );

@@ -2,12 +2,26 @@
   --primary-color: #4f46e5;
   --primary-hover: #4338ca;
   --bg-color: #f3f4f6;
-  --sidebar-bg: #1f2937;
+  --sidebar-bg: #131c28;
   --sidebar-text: #e5e7eb;
   --text-color: #111827;
   --card-bg: #ffffff;
   --border-color: #e5e7eb;
   --transition-speed: 0.3s;
+
+  /* Sidebar hierarchy tokens — phân cấp cha/con bằng typography + spacing,
+     KHÔNG color-code theo nhóm: một nền trung tính duy nhất cho toàn menu.
+     Accent (đỏ Dcorp) chỉ xuất hiện ở đúng 1 nơi: mục đang active. */
+  --sidebar-group-title-color: #e6edf5;
+  --sidebar-subgroup-title-color: #c7d0dc;
+  --sidebar-item-color: #aeb9c7;
+  --sidebar-item-hover-color: #e6edf5;
+  --sidebar-item-hover-bg: rgba(255, 255, 255, 0.05);
+  --sidebar-active-bg: rgba(255, 255, 255, 0.09);
+  --sidebar-guide-color: rgba(255, 255, 255, 0.08);
+  --sidebar-divider-color: rgba(255, 255, 255, 0.08);
+  --sidebar-accent: #e30613;
+  --sidebar-chevron-color: rgba(255, 255, 255, 0.35);
 }
 
 body {
@@ -60,19 +74,57 @@ body {
   padding: 1rem 0;
 }
 
+/* Nhịp cách giữa các NHÓM lớn hơn nhịp cách giữa các ITEM trong cùng nhóm,
+   để mắt gom cụm cha–con tự nhiên (yêu cầu spacing/rhythm). */
+.menu-group + .menu-group {
+  margin-top: 0.5rem;
+}
+
+.menu-group-title,
+.menu-subgroup-title {
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.menu-group-title:hover,
+.menu-subgroup-title:hover {
+  background-color: var(--sidebar-item-hover-bg);
+}
+
+.menu-group-title:focus-visible,
+.menu-subgroup-title:focus-visible,
+.menu-item:focus-visible {
+  outline: 2px solid var(--sidebar-accent);
+  outline-offset: -2px;
+}
+
 .menu-item {
-  padding: 0.75rem 1.5rem;
+  padding: 0.65rem 1rem;
+  min-height: 38px;
+  box-sizing: border-box;
   cursor: pointer;
-  transition: background-color var(--transition-speed), color var(--transition-speed);
+  transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  font-weight: 500;
+  font-weight: 400;
+  color: var(--sidebar-item-color);
+  border-left: 3px solid transparent;
 }
 
-.menu-item:hover, .menu-item.active {
-  background-color: var(--primary-color);
-  color: white;
+/* Hover (chưa chọn): nền sáng rất nhẹ, chữ sáng lên — KHÔNG có thanh accent,
+   để không bị nhầm với trạng thái active. */
+.menu-item:hover {
+  background-color: var(--sidebar-item-hover-bg);
+  color: var(--sidebar-item-hover-color);
+}
+
+/* Active (đang chọn): điểm nhấn màu DUY NHẤT trong toàn menu — thanh accent
+   trái + nền highlight rõ hơn hover + chữ trắng đậm. */
+.menu-item.active {
+  background-color: var(--sidebar-active-bg);
+  border-left-color: var(--sidebar-accent);
+  color: #ffffff;
+  font-weight: 600;
 }
 
 /* Main Content */
