@@ -23,6 +23,7 @@ const SYSTEM_CHECK_SECTION = {
         { id: 'connections-monitor', name: 'Connections Monitor' },
         { id: 'script-changelog', name: 'Script Change Logs' },
         { id: 'rk7-usage', name: 'RK7 Usage' },
+        { id: 'ref-connection-log', name: 'Ref Connection Log' },
     ],
 };
 

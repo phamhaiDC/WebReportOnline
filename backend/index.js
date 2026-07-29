@@ -21,6 +21,7 @@ connectDB();
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/reports/connections-monitor', require('./routes/connectionsMonitor'));
 app.use('/api/reports/rk7-usage', require('./routes/rk7Usage'));
+app.use('/api/reports/ref-connection-log', require('./routes/refConnectionLog'));
 app.use('/api/ecode/coupon-usage', require('./routes/ecodeCouponUsage'));
 app.use('/api/ecode/coupon-check', require('./routes/ecodeCouponCheck'));
 app.use('/api/ecode', require('./routes/ecodeCouponFlag'));

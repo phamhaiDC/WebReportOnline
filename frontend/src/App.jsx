@@ -7,6 +7,7 @@ import ConnectionsMonitorPage from './components/ConnectionsMonitorPage';
 import SupersetDashboardPage from './components/SupersetDashboardPage';
 import ScriptChangeLogsPage from './components/ScriptChangeLogsPage';
 import RK7UsagePage from './components/RK7UsagePage';
+import RefConnectionLogPage from './components/RefConnectionLogPage';
 import { getReports, login } from './services/api';
 
 // Bọc quanh nội dung report đang chọn — nếu component đó throw lúc render,
@@ -200,6 +201,8 @@ function App() {
             ? <ScriptChangeLogsPage />
             : selectedReportId === 'rk7-usage'
             ? <RK7UsagePage />
+            : selectedReportId === 'ref-connection-log'
+            ? <RefConnectionLogPage />
             : <ReportViewer reportMeta={selectedReport} />
           }
         </ReportErrorBoundary>

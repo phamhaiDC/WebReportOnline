@@ -6,8 +6,8 @@ const https = require('https');
 require('dotenv').config();
 
 // Configuration variables
-const RK7_API_URL = process.env.RK7_API_URL || 'https://61.28.227.20:3988/rk7api/v0/xmlinterface.xml';
-//const RK7_API_URL = process.env.RK7_API_URL || 'https://61.28.235.59:4501/rk7api/v0/xmlinterface.xml';
+//const RK7_API_URL = process.env.RK7_API_URL || 'https://61.28.227.20:3988/rk7api/v0/xmlinterface.xml';
+const RK7_API_URL = process.env.RK7_API_URL || 'https://61.28.235.59:4502/rk7api/v0/xmlinterface.xml';
 
 //const RK7_API_URL = process.env.RK7_API_URL || 'https://10.251.14.4:6690/rk7api/v0/xmlinterface.xml';
 const RK7_API_TIMEOUT = parseInt(process.env.RK7_API_TIMEOUT, 10) || 30000;

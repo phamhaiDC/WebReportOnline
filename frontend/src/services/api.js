@@ -89,4 +89,10 @@ export const getRk7UsageFilterTypes = () =>
 export const getRk7Usage = (filtertype) =>
     api.get('/reports/rk7-usage/usage', { params: { filtertype } }).then(r => r.data);
 
+export const getRefConnectionLogCurrent = () =>
+    api.get('/reports/ref-connection-log/current').then(r => r.data);
+
+export const getRefConnectionLogHistory = (params = {}) =>
+    api.get('/reports/ref-connection-log/history', { params }).then(r => r.data);
+
 export default api;

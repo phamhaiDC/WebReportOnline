@@ -2,7 +2,12 @@
   "permissions": {
     "allow": [
       "Bash(node -c routes/ecodeCouponAudit.js)",
-      "Bash(awk -F: '{print $1}')"
+      "Bash(awk -F: '{print $1}')",
+      "Bash(node --check routes/refConnectionLog.js)",
+      "Bash(node --check index.js)",
+      "Bash(npx --no-install eslint src/components/RefConnectionLogPage.jsx src/App.jsx src/components/Sidebar.jsx src/services/api.js)",
+      "Bash(npx --no-install eslint src/components/RK7UsagePage.jsx src/components/ConnectionsMonitorPage.jsx src/components/ScriptChangeLogsPage.jsx)",
+      "Bash(npx --no-install eslint src/components/RefConnectionLogPage.jsx src/App.jsx src/components/Sidebar.jsx src/services/api.js --rule '{\"react-hooks/set-state-in-effect\": \"off\"}')"
     ]
   }
 }
