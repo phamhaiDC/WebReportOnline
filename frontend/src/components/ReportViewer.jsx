@@ -1,8 +1,9 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import api, {
     getReportDetails,
     getEcodeTodayLive, getEcodeHourly, getEcodeKpi, getEcodeHeatmap, getEcodeDailyTrend, getEcodeMonthly,
-    getEcodeCheck
+    getEcodeCheck, getEcodeCaptcha, toggleEcodeCouponFlag,
+    getEcodeCouponAudit, getEcodeAuditHistory
 } from '../services/api';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
@@ -1666,11 +1667,50 @@ function EcodeCheckCopyButton({ row }) {
     const [copied, setCopied] = useState(false);
 
     const handleCopy = () => {
-        const text = `Ecode: ${row.COUPON_CODE ?? ''} | Store: ${row.STORE ?? ''} | Ngày: ${row.NGAY_SU_DUNG ?? ''} | Check: ${row.SO_CHECK ?? ''} | ${row.GHI_CHU ?? ''}`;
-        navigator.clipboard.writeText(text).then(() => {
+        // Copy đúng các cột đang hiển thị trên bảng (Store Name, Ngay Su Dung, BILL, Ecode Id,
+        // Ecode, FLAGS, GHI_CHU) — trước đây copy nhầm field STORE (không còn hiện trên bảng) và
+        // thiếu COUPON_ID/FLAGS (đang hiện trên bảng), khiến nội dung copy lệch với những gì thấy.
+        const text = [
+            `Store Name: ${row.STORENAME ?? ''}`,
+            `Ngay Su Dung: ${row.NGAY_SU_DUNG ?? ''}`,
+            `BILL: ${row.SO_CHECK ?? ''}`,
+            `Ecode Id: ${row.COUPON_ID ?? ''}`,
+            `Ecode: ${row.COUPON_CODE ?? ''}`,
+            `FLAGS: ${row.FLAGS ?? ''}`,
+            `GHI_CHU: ${row.GHI_CHU ?? ''}`,
+        ].join(' | ');
+
+        // navigator.clipboard chỉ tồn tại trong "secure context" (HTTPS hoặc localhost) — khi
+        // truy cập qua http://<ip nội bộ>:<port> thì navigator.clipboard là undefined, gọi thẳng
+        // .writeText sẽ throw TypeError. Fallback bằng textarea ẩn + execCommand('copy') cho HTTP.
+        const markCopied = () => {
             setCopied(true);
             setTimeout(() => setCopied(false), 1500);
-        });
+        };
+
+        const fallbackCopy = () => {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.focus();
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                markCopied();
+            } catch (err) {
+                console.error('[EcodeCheckCopyButton] copy failed', err);
+            } finally {
+                document.body.removeChild(textarea);
+            }
+        };
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(markCopied).catch(fallbackCopy);
+        } else {
+            fallbackCopy();
+        }
     };
 
     return (
@@ -1688,15 +1728,219 @@ function EcodeCheckCopyButton({ row }) {
     );
 }
 
+// Modal xác nhận Update FLAGS coupon — bắt buộc captcha verify ở server trước khi gọi
+// usp_ToggleCouponFlag. Sau khi update thành công/conflict, cha luôn reload lại đúng hàm
+// search hiện tại (fn_CouponUsageBySuffix) thay vì tự sửa state cục bộ, để không lệch với DB.
+function EcodeToggleFlagModal({ coupon, onClose, onSuccess, onConflict }) {
+    // captchaId + svg luôn đến từ CÙNG 1 response — gộp 1 state để không bao giờ hiện svg của
+    // response này nhưng captchaId lại là của response khác.
+    const [captcha, setCaptcha] = useState({ captchaId: null, svg: '' });
+    const [captchaAnswer, setCaptchaAnswer] = useState('');
+    const [loadingCaptcha, setLoadingCaptcha] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState(null);
+
+    const abortRef = useRef(null);
+    // Guard double-submit bằng ref (đọc/ghi đồng bộ ngay lập tức), không phụ thuộc vào việc
+    // React đã re-render để cập nhật `disabled` trên nút hay chưa — tránh 2 click liên tiếp
+    // cùng tiêu thụ 1 captcha (1 request thật, 1 request thừa báo sai).
+    const submittingRef = useRef(false);
+
+    const loadCaptcha = useCallback(() => {
+        if (abortRef.current) abortRef.current.abort();
+        const controller = new AbortController();
+        abortRef.current = controller;
+
+        setLoadingCaptcha(true);
+        setError(null);
+        setCaptchaAnswer('');
+        getEcodeCaptcha(controller.signal)
+            .then(data => {
+                setCaptcha({ captchaId: data.captchaId, svg: data.svg });
+            })
+            .catch(err => {
+                if (err.code === 'ERR_CANCELED' || err.name === 'CanceledError') return;
+                console.error('[EcodeToggleFlagModal] captcha load failed', err);
+                setError('Không tải được captcha, thử lại.');
+            })
+            .finally(() => setLoadingCaptcha(false));
+    }, []);
+
+    // Không thêm guard "đã fetch chưa" ở đây — dưới StrictMode (dev), effect này chạy
+    // mount→cleanup→mount lại; nếu guard bằng ref chặn lần mount thứ 2 thì request duy nhất
+    // (từ lần mount đầu) lại bị chính cleanup abort mất, kết quả captcha không hiện ra cho tới khi
+    // bấm "Tải lại". Chỉ dùng AbortController — lần mount đầu bị abort, lần mount thật sự (thứ 2)
+    // tự phát request mới và thành công.
+    useEffect(() => {
+        loadCaptcha();
+        return () => { if (abortRef.current) abortRef.current.abort(); };
+    }, [loadCaptcha]);
+
+    const isUsed = (Number(coupon.FLAGS) & 2) === 2;
+    const nextLabel = isUsed ? '49 (Chưa sử dụng)' : '51 (Đã sử dụng)';
+    const currentLabel = isUsed ? '51 (Đã sử dụng)' : '49 (Chưa sử dụng)';
+
+    const handleConfirm = () => {
+        if (!captchaAnswer.trim() || submittingRef.current) return;
+        submittingRef.current = true;
+        setSubmitting(true);
+        setError(null);
+        toggleEcodeCouponFlag({
+            couponId: String(coupon.COUPON_ID),
+            captchaId: captcha.captchaId,
+            captchaAnswer,
+            expectedOldFlags: coupon.FLAGS,
+        })
+            .then(() => {
+                onSuccess();
+            })
+            .catch(err => {
+                const status = err.response?.status;
+                const data = err.response?.data;
+
+                if (status === 400) {
+                    setError(data?.error || 'Captcha không đúng hoặc đã hết hạn');
+                    loadCaptcha();
+                } else if (status === 409) {
+                    onConflict(data?.error || 'Coupon đã ở trạng thái không hợp lệ để update');
+                } else if (status >= 500) {
+                    setError(`Lỗi hệ thống (${status}): ${data?.error || err.message}${data?.detail ? ` — ${data.detail}` : ''}`);
+                } else {
+                    setError(data?.error || err.message || 'Update thất bại');
+                }
+            })
+            .finally(() => {
+                submittingRef.current = false;
+                setSubmitting(false);
+            });
+    };
+
+    return (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+            <div style={{ background: '#fff', borderRadius: '12px', padding: '1.5rem', width: '420px', maxWidth: '92vw', boxShadow: '0 10px 40px rgba(0,0,0,.25)' }}>
+                <div style={{ fontSize: '1rem', fontWeight: 800, marginBottom: '0.75rem' }}>Xác nhận Update FLAGS Coupon</div>
+
+                <div style={{ background: '#f9fafb', borderRadius: '8px', padding: '10px 12px', fontSize: '0.82rem', marginBottom: '1rem', lineHeight: 1.6 }}>
+                    <div><strong>Coupon ID:</strong> {coupon.COUPON_ID}</div>
+                    <div><strong>Coupon Code:</strong> {coupon.COUPON_CODE}</div>
+                    <div><strong>Trạng thái hiện tại:</strong> {currentLabel}</div>
+                    <div><strong>Sau khi update:</strong> {nextLabel}</div>
+                </div>
+
+                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px', marginBottom: '0.75rem' }}>
+                    <div style={{ border: '1px solid #e5e7eb', borderRadius: '6px', width: '200px', height: '70px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff', overflow: 'hidden' }}>
+                        {loadingCaptcha
+                            ? <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>Đang tải...</span>
+                            : captcha.svg && <img alt="captcha" src={`data:image/svg+xml;utf8,${encodeURIComponent(captcha.svg)}`} style={{ width: '100%', height: '100%' }} />}
+                    </div>
+                    <button
+                        onClick={loadCaptcha}
+                        disabled={loadingCaptcha}
+                        style={{ border: '1px solid #e5e7eb', background: '#fff', borderRadius: '6px', padding: '6px 10px', fontSize: '0.75rem', cursor: loadingCaptcha ? 'not-allowed' : 'pointer' }}
+                    >
+                        🔄 Tải lại captcha
+                    </button>
+                </div>
+
+                <input
+                    type="text"
+                    value={captchaAnswer}
+                    onChange={e => setCaptchaAnswer(e.target.value)}
+                    placeholder="Nhập captcha"
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: '7px', border: '1px solid #e5e7eb', fontSize: '0.85rem', marginBottom: '0.75rem', boxSizing: 'border-box' }}
+                />
+
+                {error && (
+                    <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', borderRadius: '8px', padding: '0.5rem 0.75rem', fontSize: '0.78rem', marginBottom: '0.75rem' }}>
+                        ⚠ {error}
+                    </div>
+                )}
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                    <button
+                        onClick={onClose}
+                        disabled={submitting}
+                        style={{ border: '1px solid #e5e7eb', background: '#fff', color: '#374151', borderRadius: '7px', padding: '8px 16px', fontWeight: 600, fontSize: '0.82rem', cursor: submitting ? 'not-allowed' : 'pointer' }}
+                    >
+                        Huỷ
+                    </button>
+                    <button
+                        onClick={handleConfirm}
+                        disabled={!captchaAnswer.trim() || submitting}
+                        style={{
+                            border: 'none', borderRadius: '7px', padding: '8px 16px', fontWeight: 700, fontSize: '0.82rem', color: '#fff',
+                            background: (!captchaAnswer.trim() || submitting) ? '#d1d5db' : ECODE_ACCENT,
+                            cursor: (!captchaAnswer.trim() || submitting) ? 'not-allowed' : 'pointer'
+                        }}
+                    >
+                        {submitting ? 'Đang xử lý...' : 'Xác nhận Update'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// Bảng lịch sử thay đổi FLAGS (audit) của 1 coupon — gập/mở, chỉ render khi có ít nhất 1 dòng
+// (coupon chưa từng bị chỉnh tay thì component này return null, không chiếm chỗ trên UI).
+function EcodeAuditPanel({ coupon, items }) {
+    const [open, setOpen] = useState(false);
+
+    if (!items || items.length === 0) return null;
+
+    return (
+        <div style={{ background: '#fff', borderRadius: '10px', boxShadow: '0 1px 6px rgba(0,0,0,.07)', marginBottom: '1rem', overflow: 'hidden' }}>
+            <button
+                onClick={() => setOpen(o => !o)}
+                style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 700, fontSize: '0.85rem', color: '#374151' }}
+            >
+                <span>Lịch sử thay đổi FLAGS — Coupon {coupon.COUPON_CODE ?? coupon.COUPON_ID} ({items.length} lần)</span>
+                <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>{open ? '▲ Thu gọn' : '▼ Mở rộng'}</span>
+            </button>
+            {open && (
+                <div style={{ overflowX: 'auto', borderTop: '1px solid #f3f4f6' }}>
+                    <table style={{ minWidth: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+                        <thead style={{ backgroundColor: '#f9fafb' }}>
+                            <tr>
+                                {['Thời điểm', 'Từ', 'Đến', 'Người đổi', 'IP', 'Nguồn'].map(col => (
+                                    <th key={col} style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700, color: '#374151', borderBottom: '1px solid #e5e7eb', whiteSpace: 'nowrap' }}>
+                                        {col}
+                                    </th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {items.map((row, idx) => (
+                                <tr key={row.AUDIT_ID ?? idx} style={{ background: idx % 2 === 0 ? '#fff' : '#fafafa' }}>
+                                    <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6', whiteSpace: 'nowrap' }}>{row.CHANGED_AT ?? ''}</td>
+                                    <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6' }}>{row.OLD_STATUS ?? ''} ({row.OLD_FLAGS ?? ''})</td>
+                                    <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6' }}>{row.NEW_STATUS ?? ''} ({row.NEW_FLAGS ?? ''})</td>
+                                    <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6' }}>{row.CHANGED_BY ?? ''}</td>
+                                    <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6', fontFamily: "'DM Mono', monospace" }}>{row.CLIENT_IP ?? ''}</td>
+                                    <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6' }}>{row.APP_NAME ?? ''}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </div>
+    );
+}
+
 const EcodeCheckDashboard = () => {
     const [ecode, setEcode] = useState('');
     const [results, setResults] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [notice, setNotice] = useState(null);
+    const [activeCoupon, setActiveCoupon] = useState(null);
+    const [auditByCoupon, setAuditByCoupon] = useState({});
 
     const handleEcodeChange = (e) => {
         const digitsOnly = e.target.value.replace(/\D/g, '').slice(0, 13);
         setEcode(digitsOnly);
+        setNotice(null);
     };
 
     const handleSearch = useCallback(() => {
@@ -1715,6 +1959,60 @@ const EcodeCheckDashboard = () => {
 
     const handleKeyDown = (e) => {
         if (e.key === 'Enter') handleSearch();
+    };
+
+    // Report trả về cả các dòng "lỗi" (STORE=0, COUPON_ID null/0, ví dụ "Không tìm thấy") lẫn
+    // nhiều dòng transaction trùng COUPON_ID — chỉ coi là tìm thấy coupon khi COUPON_ID hợp lệ,
+    // và gom về danh sách duy nhất theo COUPON_ID để chỉ hiện 1 button hành động / coupon.
+    const uniqueCoupons = useMemo(() => {
+        if (!results) return [];
+        const byId = new Map();
+        for (const row of results) {
+            // COUPON_ID là BIGINT, có thể vượt Number.MAX_SAFE_INTEGER — chỉ dùng Number(...) để
+            // kiểm tra hợp lệ (>0), còn lưu/gửi đi phải giữ nguyên dạng string để không mất độ
+            // chính xác (mất chính xác ở đây từng khiến update gửi nhầm COUPON_ID và luôn báo lỗi).
+            const idStr = row.COUPON_ID != null ? String(row.COUPON_ID).trim() : '';
+            if (!idStr || !/^\d+$/.test(idStr) || Number(idStr) <= 0) continue;
+            if (!byId.has(idStr)) {
+                byId.set(idStr, { COUPON_ID: idStr, COUPON_CODE: row.COUPON_CODE, FLAGS: Number(row.FLAGS) });
+            }
+        }
+        return Array.from(byId.values());
+    }, [results]);
+
+    // Với mỗi coupon tìm được, tra thêm lịch sử audit FLAGS để hiện badge/panel "đã chỉnh sửa thủ
+    // công". Chạy lại mỗi khi uniqueCoupons đổi — bao gồm cả sau khi toggle flag thành công (handleSearch
+    // chạy lại → results đổi → uniqueCoupons đổi → effect này refetch audit, badge/panel tự cập nhật).
+    useEffect(() => {
+        if (uniqueCoupons.length === 0) {
+            setAuditByCoupon({});
+            return;
+        }
+        let cancelled = false;
+        Promise.all(uniqueCoupons.map(c =>
+            getEcodeCouponAudit(c.COUPON_ID)
+                .then(data => [c.COUPON_ID, Array.isArray(data?.items) ? data.items : []])
+                .catch(err => {
+                    console.error('[EcodeCheckDashboard] audit fetch failed', c.COUPON_ID, err);
+                    return [c.COUPON_ID, []];
+                })
+        )).then(entries => {
+            if (cancelled) return;
+            setAuditByCoupon(Object.fromEntries(entries));
+        });
+        return () => { cancelled = true; };
+    }, [uniqueCoupons]);
+
+    const handleToggleSuccess = () => {
+        setActiveCoupon(null);
+        setNotice({ type: 'success', text: 'Đã cập nhật FLAGS coupon thành công.' });
+        handleSearch();
+    };
+
+    const handleToggleConflict = (message) => {
+        setActiveCoupon(null);
+        setNotice({ type: 'error', text: message });
+        handleSearch();
     };
 
     return (
@@ -1759,6 +2057,52 @@ const EcodeCheckDashboard = () => {
                 </div>
             )}
 
+            {notice && (
+                <div style={{
+                    background: notice.type === 'success' ? '#f0fdf4' : '#fef2f2',
+                    border: `1px solid ${notice.type === 'success' ? '#bbf7d0' : '#fecaca'}`,
+                    color: notice.type === 'success' ? '#166534' : '#991b1b',
+                    borderRadius: '8px', padding: '0.6rem 1rem', fontSize: '0.8rem', marginBottom: '1rem'
+                }}>
+                    {notice.type === 'success' ? '✅' : '⚠'} {notice.text}
+                </div>
+            )}
+
+            {uniqueCoupons.length > 0 && (
+                <div style={{ background: '#fff', borderRadius: '10px', boxShadow: '0 1px 6px rgba(0,0,0,.07)', padding: '14px 16px', marginBottom: '1rem' }}>
+                    <div style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 700, marginBottom: '8px' }}>Hành động</div>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        {uniqueCoupons.map(c => {
+                            const isUsed = (c.FLAGS & 2) === 2;
+                            const auditCount = auditByCoupon[c.COUPON_ID]?.length || 0;
+                            return (
+                                <div key={c.COUPON_ID} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <button
+                                        onClick={() => setActiveCoupon(c)}
+                                        style={{
+                                            border: 'none', borderRadius: '7px', padding: '8px 16px', fontWeight: 700, fontSize: '0.82rem',
+                                            color: '#fff', background: isUsed ? '#dc2626' : '#16a34a', cursor: 'pointer'
+                                        }}
+                                        title={`Coupon ${c.COUPON_CODE ?? c.COUPON_ID}`}
+                                    >
+                                        {isUsed ? 'Update → 49 (Chưa sử dụng)' : 'Update → 51 (Đã sử dụng)'}
+                                    </button>
+                                    {auditCount > 0 && (
+                                        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#b45309', background: '#fef3c7', border: '1px solid #fde68a', borderRadius: '999px', padding: '3px 10px', whiteSpace: 'nowrap' }}>
+                                            ⚠ Đã chỉnh sửa thủ công ({auditCount} lần)
+                                        </span>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
+            {uniqueCoupons.map(c => (
+                <EcodeAuditPanel key={c.COUPON_ID} coupon={c} items={auditByCoupon[c.COUPON_ID]} />
+            ))}
+
             {results && (
                 results.length === 0 ? (
                     <div style={{ background: '#fff', borderRadius: '10px', boxShadow: '0 1px 6px rgba(0,0,0,.07)', padding: '2rem', textAlign: 'center', color: '#6b7280', fontSize: '0.85rem' }}>
@@ -1769,7 +2113,7 @@ const EcodeCheckDashboard = () => {
                         <table style={{ minWidth: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
                             <thead style={{ backgroundColor: '#f9fafb' }}>
                                 <tr>
-                                    {['STORE', 'NGAY_SU_DUNG', 'SO_CHECK', 'MA_CODE', 'COUPON_ID', 'COUPON_CODE', 'FLAGS', 'GHI_CHU', ''].map((col, i) => (
+                                    {[ 'Store Name', 'Ngay Su Dung', 'BILL',  'Ecode Id', 'Ecode', 'FLAGS', 'GHI_CHU', ''].map((col, i) => (
                                         <th key={col || `copy-${i}`} style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700, color: '#374151', borderBottom: '1px solid #e5e7eb', whiteSpace: 'nowrap' }}>
                                             {col}
                                         </th>
@@ -1779,10 +2123,11 @@ const EcodeCheckDashboard = () => {
                             <tbody>
                                 {results.map((row, idx) => (
                                     <tr key={idx} style={{ background: idx % 2 === 0 ? '#fff' : '#fafafa' }}>
-                                        <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6' }}>{row.STORE ?? ''}</td>
+                                      
+                                        <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6' }}>{row.STORENAME ?? ''}</td>
                                         <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6' }}>{row.NGAY_SU_DUNG ?? ''}</td>
                                         <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6' }}>{row.SO_CHECK ?? ''}</td>
-                                        <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6' }}>{row.MA_CODE ?? ''}</td>
+                                        
                                         <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6' }}>{row.COUPON_ID ?? ''}</td>
                                         <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6', fontFamily: "'DM Mono', monospace" }}>{row.COUPON_CODE ?? ''}</td>
                                         <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6' }}>{row.FLAGS ?? ''}</td>
@@ -1797,6 +2142,186 @@ const EcodeCheckDashboard = () => {
                     </div>
                 )
             )}
+
+            {activeCoupon && (
+                <EcodeToggleFlagModal
+                    coupon={activeCoupon}
+                    onClose={() => setActiveCoupon(null)}
+                    onSuccess={handleToggleSuccess}
+                    onConflict={handleToggleConflict}
+                />
+            )}
+        </div>
+    );
+};
+
+const EcodeChangeLogDashboard = () => {
+    const [daysInput, setDaysInput] = useState(5);
+    const [ecodeInput, setEcodeInput] = useState('');
+    const [query, setQuery] = useState({ mode: 'days', days: 5, ecode: null });
+    const [items, setItems] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+
+    const runQuery = useCallback((q) => {
+        setLoading(true);
+        setError(null);
+        getEcodeAuditHistory(q.mode === 'ecode' ? { ecode: q.ecode } : { days: q.days })
+            .then(data => {
+                setItems(Array.isArray(data?.items) ? data.items : []);
+                setQuery({
+                    mode: data?.mode ?? q.mode,
+                    days: data?.days ?? q.days ?? null,
+                    ecode: data?.ecode ?? q.ecode ?? null,
+                });
+            })
+            .catch(err => {
+                console.error('[EcodeChangeLogDashboard] fetch failed', err);
+                setError(err.response?.data?.error || err.message || 'Tải lịch sử thất bại');
+                setItems([]);
+            })
+            .finally(() => setLoading(false));
+    }, []);
+
+    // Mặc định vào trang: xem 5 ngày gần nhất.
+    useEffect(() => {
+        runQuery({ mode: 'days', days: 5 });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const handleViewByDays = () => {
+        const d = Math.min(90, Math.max(1, parseInt(daysInput, 10) || 5));
+        setDaysInput(d);
+        runQuery({ mode: 'days', days: d });
+    };
+
+    const handleEcodeInputChange = (e) => {
+        setEcodeInput(e.target.value.replace(/\D/g, '').slice(0, 13));
+    };
+
+    const handleViewByEcode = () => {
+        const trimmed = ecodeInput.trim();
+        if (!trimmed) return;
+        if (!/^\d{1,13}$/.test(trimmed)) {
+            setError('Ecode chỉ được chứa tối đa 13 chữ số');
+            return;
+        }
+        runQuery({ mode: 'ecode', ecode: trimmed });
+    };
+
+    const handleKeyDownEcode = (e) => {
+        if (e.key === 'Enter') handleViewByEcode();
+    };
+
+    const handleKeyDownDays = (e) => {
+        if (e.key === 'Enter') handleViewByDays();
+    };
+
+    const modeLabel = query.mode === 'ecode'
+        ? `Đang xem: ecode ${query.ecode}`
+        : `Đang xem: ${query.days} ngày gần nhất`;
+
+    return (
+        <div style={{ padding: '1.5rem', background: '#f3f4f6', borderRadius: '12px' }}>
+            <div style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 600, marginBottom: '0.75rem' }}>
+                Ecode Change Log — Lịch sử thay đổi FLAGS coupon (audit) · Server CRM
+            </div>
+
+            <div style={{ background: '#fff', borderRadius: '10px', boxShadow: '0 1px 6px rgba(0,0,0,.07)', padding: '16px', marginBottom: '1rem', borderTop: `3px solid ${ECODE_ACCENT}` }}>
+                <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                    <div>
+                        <div style={{ fontSize: '0.75rem', fontWeight: 700, marginBottom: '6px', color: '#374151' }}>Số ngày gần nhất</div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                            <input
+                                type="number"
+                                min={1}
+                                max={90}
+                                value={daysInput}
+                                onChange={(e) => setDaysInput(e.target.value)}
+                                onKeyDown={handleKeyDownDays}
+                                style={{ width: '90px', padding: '8px 10px', borderRadius: '7px', border: '1px solid #e5e7eb', fontSize: '0.85rem' }}
+                            />
+                            <button
+                                onClick={handleViewByDays}
+                                disabled={loading}
+                                style={{ border: 'none', borderRadius: '7px', padding: '8px 16px', fontWeight: 700, fontSize: '0.82rem', color: '#fff', background: loading ? '#d1d5db' : ECODE_ACCENT, cursor: loading ? 'not-allowed' : 'pointer' }}
+                            >
+                                Xem theo ngày
+                            </button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div style={{ fontSize: '0.75rem', fontWeight: 700, marginBottom: '6px', color: '#374151' }}>Nhập Ecode</div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                            <input
+                                type="text"
+                                inputMode="numeric"
+                                value={ecodeInput}
+                                onChange={handleEcodeInputChange}
+                                onKeyDown={handleKeyDownEcode}
+                                placeholder="Tối đa 13 chữ số"
+                                style={{ width: '160px', padding: '8px 10px', borderRadius: '7px', border: '1px solid #e5e7eb', fontFamily: "'DM Mono', monospace", fontSize: '0.85rem' }}
+                            />
+                            <button
+                                onClick={handleViewByEcode}
+                                disabled={loading || !ecodeInput}
+                                style={{ border: 'none', borderRadius: '7px', padding: '8px 16px', fontWeight: 700, fontSize: '0.82rem', color: '#fff', background: (loading || !ecodeInput) ? '#d1d5db' : ECODE_ACCENT, cursor: (loading || !ecodeInput) ? 'not-allowed' : 'pointer' }}
+                            >
+                                Tìm theo Ecode
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div style={{ marginTop: '12px', fontSize: '0.75rem', color: '#6b7280', fontWeight: 600 }}>
+                    {modeLabel}
+                </div>
+            </div>
+
+            {error && (
+                <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', borderRadius: '8px', padding: '0.6rem 1rem', fontSize: '0.8rem', marginBottom: '1rem' }}>
+                    ⚠ {error}
+                </div>
+            )}
+
+            <div style={{ background: '#fff', borderRadius: '10px', boxShadow: '0 1px 6px rgba(0,0,0,.07)', overflow: 'hidden' }}>
+                <div style={{ padding: '10px 16px', borderBottom: '1px solid #f3f4f6', fontSize: '0.75rem', color: '#6b7280', fontWeight: 700 }}>
+                    {loading ? 'Đang tải...' : `Showing ${items.length} records`}
+                </div>
+                {!loading && items.length === 0 ? (
+                    <div style={{ padding: '2rem', textAlign: 'center', color: '#6b7280', fontSize: '0.85rem' }}>
+                        Không có thay đổi nào trong khoảng đã chọn.
+                    </div>
+                ) : (
+                    <div style={{ overflowX: 'auto' }}>
+                        <table style={{ minWidth: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+                            <thead style={{ backgroundColor: '#f9fafb' }}>
+                                <tr>
+                                    {['Thời điểm', 'COUPON_ID', 'COUPON_CODE', 'Từ', 'Đến', 'Người đổi', 'IP', 'Nguồn'].map(col => (
+                                        <th key={col} style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700, color: '#374151', borderBottom: '1px solid #e5e7eb', whiteSpace: 'nowrap' }}>
+                                            {col}
+                                        </th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {items.map((row, idx) => (
+                                    <tr key={row.AUDIT_ID ?? idx} style={{ background: idx % 2 === 0 ? '#fff' : '#fafafa' }}>
+                                        <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6', whiteSpace: 'nowrap' }}>{row.CHANGED_AT ?? ''}</td>
+                                        <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6' }}>{row.COUPON_ID ?? ''}</td>
+                                        <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6', fontFamily: "'DM Mono', monospace" }}>{row.COUPON_CODE ?? ''}</td>
+                                        <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6' }}>{row.OLD_STATUS ?? ''} ({row.OLD_FLAGS ?? ''})</td>
+                                        <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6' }}>{row.NEW_STATUS ?? ''} ({row.NEW_FLAGS ?? ''})</td>
+                                        <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6' }}>{row.CHANGED_BY ?? ''}</td>
+                                        <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6', fontFamily: "'DM Mono', monospace" }}>{row.CLIENT_IP ?? ''}</td>
+                                        <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6' }}>{row.APP_NAME ?? ''}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
         </div>
     );
 };
@@ -2947,6 +3472,8 @@ const ReportViewerContent = ({ reportMeta }) => {
                                     <EcodeUsingDashboard />
                                 ) : reportMeta.id === 'ecode_check' ? (
                                     <EcodeCheckDashboard />
+                                ) : reportMeta.id === 'ecode_change_log' ? (
+                                    <EcodeChangeLogDashboard />
                                 ) : (
                                     <LatencyDashboard data={data} params={params} />
                                 )

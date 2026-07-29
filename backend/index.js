@@ -23,6 +23,8 @@ app.use('/api/reports/connections-monitor', require('./routes/connectionsMonitor
 app.use('/api/reports/rk7-usage', require('./routes/rk7Usage'));
 app.use('/api/ecode/coupon-usage', require('./routes/ecodeCouponUsage'));
 app.use('/api/ecode/coupon-check', require('./routes/ecodeCouponCheck'));
+app.use('/api/ecode', require('./routes/ecodeCouponFlag'));
+app.use('/api/ecode', require('./routes/ecodeCouponAudit'));
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/healthcheck', require('./routes/healthcheck'));
 app.use('/api/superset-guest-token', require('./routes/superset'));

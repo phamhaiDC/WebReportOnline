@@ -296,6 +296,13 @@ router.get('/', async (req, res) => {
                         description: 'Tra cứu nhanh tình trạng sử dụng 1 coupon theo mã ecode (server CRM)',
                         isDashboard: true,
                         parameters: []
+                    },
+                    {
+                        id: 'ecode_change_log',
+                        name: 'Ecode Change Log',
+                        description: 'Lịch sử thay đổi FLAGS coupon theo ngày hoặc theo ecode (server CRM)',
+                        isDashboard: true,
+                        parameters: []
                     }
                 ]
             },

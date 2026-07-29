@@ -56,6 +56,18 @@ export const getEcodeMonthly = (year = new Date().getFullYear()) =>
 export const getEcodeCheck = (ecode) =>
     api.get('/ecode/coupon-check', { params: { ecode } }).then(r => r.data);
 
+export const getEcodeCaptcha = (signal) =>
+    api.get('/ecode/captcha', { signal }).then(r => r.data);
+
+export const toggleEcodeCouponFlag = ({ couponId, captchaId, captchaAnswer, expectedOldFlags }) =>
+    api.post('/ecode/toggle-flag', { couponId, captchaId, captchaAnswer, expectedOldFlags }).then(r => r.data);
+
+export const getEcodeCouponAudit = (couponId) =>
+    api.get('/ecode/audit', { params: { couponId } }).then(r => r.data);
+
+export const getEcodeAuditHistory = ({ days, ecode } = {}) =>
+    api.get('/ecode/audit-history', { params: ecode ? { ecode } : { days } }).then(r => r.data);
+
 export const getSupersetGuestToken = () =>
     api.get('/superset-guest-token').then(r => r.data);
 

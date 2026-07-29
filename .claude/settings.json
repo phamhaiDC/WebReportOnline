@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -c routes/ecodeCouponAudit.js)",
+      "Bash(awk -F: '{print $1}')"
+    ]
+  }
+}
