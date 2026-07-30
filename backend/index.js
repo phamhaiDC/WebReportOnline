@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const dotenv = require('dotenv');
 const { connectDB } = require('./config/db');
 const reportsRoutes = require('./routes/reports');
@@ -21,6 +22,14 @@ const ALLOWED_ORIGINS = [
 ];
 
 // Middleware
+app.use(helmet({
+    // API JSON thuần (không serve HTML) — CSP không có tác dụng thật ở đây, tắt cho khỏi nhiễu.
+    contentSecurityPolicy: false,
+    // Frontend (port 80) và backend (port 5577) khác origin nhau theo đúng thiết kế — nếu để mặc
+    // định 'same-origin', Chrome sẽ tự chặn fetch cross-origin dù CORS header đã đúng (CORP là lớp
+    // kiểm tra độc lập với CORS).
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+}));
 app.use(cors({
     origin(origin, callback) {
         // Không có Origin header (curl, gọi server-to-server, Postman...) — CORS chỉ áp dụng cho

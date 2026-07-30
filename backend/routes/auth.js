@@ -129,7 +129,6 @@ router.post('/login', loginLimiter, async (req, res) => {
         // STEP 3: Login Result Evaluation
         // ============================================================
         console.log(`[Auth] RK7 API Response Status: ${apiResponse.status}`);
-        console.log(`[Auth] RK7 API Response Data:`, apiResponse.data);
 
         // Check 1: HTTP status code = 200
         if (apiResponse.status !== 200) {
