@@ -43,7 +43,7 @@ router.get('/scripts', async (req, res) => {
         res.json(result.rows);
     } catch (err) {
         console.error('[ScriptChangelog] Failed to fetch scripts:', err);
-        res.status(500).json({ message: 'Failed to fetch scripts', error: err.message });
+        res.status(500).json({ message: 'Failed to fetch scripts' });
     }
 });
 
@@ -68,7 +68,7 @@ router.get('/stats', async (req, res) => {
         res.json(result.rows[0]);
     } catch (err) {
         console.error('[ScriptChangelog] Failed to fetch stats:', err);
-        res.status(500).json({ message: 'Failed to fetch stats', error: err.message });
+        res.status(500).json({ message: 'Failed to fetch stats' });
     }
 });
 
@@ -90,7 +90,7 @@ router.get('/scripts/:ident', async (req, res) => {
         res.json(result.rows[0]);
     } catch (err) {
         console.error('[ScriptChangelog] Failed to fetch script:', err);
-        res.status(500).json({ message: 'Failed to fetch script', error: err.message });
+        res.status(500).json({ message: 'Failed to fetch script' });
     }
 });
 
@@ -109,7 +109,7 @@ router.get('/scripts/:ident/history', async (req, res) => {
         res.json(result.rows);
     } catch (err) {
         console.error('[ScriptChangelog] Failed to fetch history:', err);
-        res.status(500).json({ message: 'Failed to fetch history', error: err.message });
+        res.status(500).json({ message: 'Failed to fetch history' });
     }
 });
 

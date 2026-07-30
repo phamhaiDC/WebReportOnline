@@ -26,7 +26,7 @@ router.get('/audit', async (req, res) => {
         return res.json({ items: result.recordset });
     } catch (err) {
         console.error('[Ecode] audit failed:', err.message);
-        return res.status(500).json({ error: 'Lấy lịch sử audit thất bại', detail: err.message });
+        return res.status(500).json({ error: 'Lấy lịch sử audit thất bại' });
     }
 });
 
@@ -66,7 +66,7 @@ router.get('/audit-history', async (req, res) => {
         });
     } catch (err) {
         console.error('[Ecode] audit-history failed:', err.message);
-        return res.status(500).json({ error: 'Lấy lịch sử audit thất bại', detail: err.message });
+        return res.status(500).json({ error: 'Lấy lịch sử audit thất bại' });
     }
 });
 

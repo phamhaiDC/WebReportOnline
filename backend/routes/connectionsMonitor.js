@@ -52,7 +52,7 @@ router.post('/run', async (req, res) => {
     res.json({ runAt: new Date().toISOString(), root, summary });
   } catch (err) {
     console.error('[connections-monitor] run failed:', err.message);
-    res.status(500).json({ error: err.message || 'Failed to run connections monitor' });
+    res.status(500).json({ error: 'Failed to run connections monitor' });
   }
 });
 

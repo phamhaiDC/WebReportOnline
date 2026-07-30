@@ -5,6 +5,7 @@ const router = express.Router();
 const svgCaptcha = require('svg-captcha');
 const { getCrmPool, sql } = require('../config/crmDb');
 const captchaStore = require('../services/captchaStore');
+const { captchaLimiter } = require('../middleware/rateLimit');
 
 // Chữ dễ đọc: bỏ hẳn các ký tự dễ nhầm lẫn (I/l/1/L, O/0, U/V/u/v, S/s/5...) khỏi bảng ký tự,
 // thay vì chỉ ignoreChars một phần — ignoreChars vẫn giữ lại làm lớp lọc thứ 2 cho an toàn.
@@ -35,7 +36,7 @@ function buildCaptcha() {
 
 // @route   GET /api/ecode/captcha
 // @desc    Sinh captcha SVG cho luồng xác nhận Update FLAGS coupon
-router.get('/captcha', (req, res) => {
+router.get('/captcha', captchaLimiter, (req, res) => {
     const captcha = buildCaptcha();
     const { captchaId } = captchaStore.create(captcha.text);
 
@@ -85,7 +86,7 @@ router.post('/toggle-flag', async (req, res) => {
         if (err.number === 50001 || err.number === 50002) {
             return res.status(409).json({ error: err.message });
         }
-        return res.status(500).json({ error: 'Toggle coupon flag failed', detail: err.message });
+        return res.status(500).json({ error: 'Toggle coupon flag failed' });
     }
 });
 

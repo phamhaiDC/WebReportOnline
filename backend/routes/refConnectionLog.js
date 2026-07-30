@@ -77,7 +77,7 @@ router.get('/current', async (req, res) => {
         res.json({ rows: result.rows });
     } catch (err) {
         console.error('[RefConnectionLog] /current error:', err);
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ error: 'Không thể tải dữ liệu Current Connection' });
     }
 });
 
@@ -130,7 +130,7 @@ router.get('/history', async (req, res) => {
         });
     } catch (err) {
         console.error('[RefConnectionLog] /history error:', err);
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ error: 'Không thể tải dữ liệu History' });
     }
 });
 

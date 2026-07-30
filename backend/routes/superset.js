@@ -85,8 +85,7 @@ router.get('/', async (req, res) => {
     } catch (err) {
         console.error('[Superset] Guest token request failed:', err.response?.data || err.message);
         return res.status(500).json({
-            message: 'Failed to obtain Superset guest token',
-            error: err.response?.data || err.message
+            message: 'Failed to obtain Superset guest token'
         });
     }
 });

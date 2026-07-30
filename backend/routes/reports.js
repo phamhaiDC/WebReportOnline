@@ -639,7 +639,7 @@ router.post('/:id', async (req, res) => {
 
             } catch (err) {
                 console.error('[API] general_online_sales failed:', err);
-                return res.status(500).json({ msg: 'Report execution failed', error: err.message });
+                return res.status(500).json({ msg: 'Report execution failed' });
             }
         }
 
@@ -737,7 +737,7 @@ router.post('/:id', async (req, res) => {
 
             } catch (err) {
                 console.error('[API] sales_analyze failed:', err);
-                return res.status(500).json({ msg: 'Report execution failed', error: err.message });
+                return res.status(500).json({ msg: 'Report execution failed' });
             }
         }
 
@@ -771,7 +771,7 @@ router.post('/:id', async (req, res) => {
                 return res.json(processed);
             } catch (err) {
                 console.error('[API] online_sales_revenue_snapshot failed:', err);
-                return res.status(500).json({ msg: 'Report execution failed', error: err.message });
+                return res.status(500).json({ msg: 'Report execution failed' });
             }
         }
 
@@ -796,7 +796,7 @@ router.post('/:id', async (req, res) => {
 
             } catch (err) {
                 console.error('[API] upload_latencies failed:', err);
-                return res.status(500).json({ msg: 'Dashboard execution failed', error: err.message });
+                return res.status(500).json({ msg: 'Dashboard execution failed' });
             }
         }
 
@@ -834,7 +834,7 @@ router.post('/:id', async (req, res) => {
 
             } catch (err) {
                 console.error('[API] latency_by_location dashboard failed:', err);
-                return res.status(500).json({ msg: 'Operational Dashboard execution failed', error: err.message });
+                return res.status(500).json({ msg: 'Operational Dashboard execution failed' });
             }
         }
 
@@ -861,7 +861,7 @@ router.post('/:id', async (req, res) => {
 
             } catch (err) {
                 console.error('[API] shift_closed_by_time failed:', err);
-                return res.status(500).json({ msg: 'Report execution failed', error: err.message });
+                return res.status(500).json({ msg: 'Report execution failed' });
             }
         }
 
@@ -988,7 +988,7 @@ router.post('/:id', async (req, res) => {
                 return res.json(processedResult);
             } catch (err) {
                 console.error('[API] compare_masterdata failed:', err);
-                return res.status(500).json({ msg: 'Report execution failed', error: err.message });
+                return res.status(500).json({ msg: 'Report execution failed' });
             }
         }
 
@@ -1164,7 +1164,7 @@ router.post('/:id', async (req, res) => {
 
             } catch (err) {
                 console.error('[API] Data Reconciliation failed:', err);
-                return res.status(500).json({ msg: 'Report execution failed', error: err.message });
+                return res.status(500).json({ msg: 'Report execution failed' });
             }
         }
 
@@ -1257,7 +1257,7 @@ router.post('/:id', async (req, res) => {
 
             } catch (err) {
                 console.error('[API] BO.101 Failed:', err);
-                return res.status(500).json({ msg: 'Report execution failed', error: err.message });
+                return res.status(500).json({ msg: 'Report execution failed' });
             }
         }
 
@@ -1301,7 +1301,7 @@ router.post('/:id', async (req, res) => {
 
             } catch (err) {
                 console.error('[API] BO.104 Failed:', err);
-                return res.status(500).json({ msg: 'Report execution failed', error: err.message });
+                return res.status(500).json({ msg: 'Report execution failed' });
             }
         }
 
@@ -1339,7 +1339,7 @@ router.post('/:id', async (req, res) => {
 
             } catch (err) {
                 console.error('[API] Common Shift Info Failed:', err);
-                return res.status(500).json({ msg: 'Report execution failed', error: err.message });
+                return res.status(500).json({ msg: 'Report execution failed' });
             }
         }
 
@@ -1460,7 +1460,7 @@ router.post('/:id', async (req, res) => {
 
             } catch (err) {
                 console.error('[API] Online Compare Failed:', err);
-                return res.status(500).json({ msg: 'Report execution failed', error: err.message });
+                return res.status(500).json({ msg: 'Report execution failed' });
             }
         }
 

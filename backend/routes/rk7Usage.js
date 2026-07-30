@@ -15,7 +15,7 @@ router.get('/filtertypes', async (req, res) => {
         res.json(result.recordset);
     } catch (err) {
         console.error('[Rk7Usage] /filtertypes error:', err);
-        res.status(500).json({ message: 'Failed to load filter types', error: err.message });
+        res.status(500).json({ message: 'Failed to load filter types' });
     }
 });
 
@@ -38,7 +38,7 @@ router.get('/usage', async (req, res) => {
         res.json(result.recordset);
     } catch (err) {
         console.error('[Rk7Usage] /usage error:', err);
-        res.status(500).json({ message: 'Failed to load object usage data', error: err.message });
+        res.status(500).json({ message: 'Failed to load object usage data' });
     }
 });
 

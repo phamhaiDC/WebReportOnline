@@ -10,8 +10,31 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5577;
 
+// Origin frontend được phép gọi API — dev chạy local (vite, port 80 theo frontend/vite.config.js),
+// production hiện tại là vtiinfo.dcorp.com.vn qua HTTP thuần (chưa bật HTTPS — khi bật, origin
+// https:// bên dưới sẽ dùng được luôn, không cần sửa lại đoạn này).
+const ALLOWED_ORIGINS = [
+    /^https?:\/\/localhost(:\d+)?$/,
+    /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
+    'http://vtiinfo.dcorp.com.vn',
+    'https://vtiinfo.dcorp.com.vn',
+];
+
 // Middleware
-app.use(cors());
+app.use(cors({
+    origin(origin, callback) {
+        // Không có Origin header (curl, gọi server-to-server, Postman...) — CORS chỉ áp dụng cho
+        // trình duyệt nên không cần chặn ở đây; đây KHÔNG phải lớp xác thực, chỉ chặn web lạ đọc
+        // response qua trình duyệt người dùng.
+        if (!origin) return callback(null, true);
+        const allowed = ALLOWED_ORIGINS.some((o) => (o instanceof RegExp ? o.test(origin) : o === origin));
+        // Luôn callback(null, ...) — KHÔNG truyền Error, nếu không cors sẽ next(err) và rơi vào
+        // default error handler của Express, lộ stack trace (đường dẫn file server) ra response.
+        // allowed=false chỉ đơn giản là không gắn header Access-Control-Allow-Origin, khiến trình
+        // duyệt tự chặn JS đọc response — server vẫn xử lý request bình thường phía dưới.
+        callback(null, allowed);
+    },
+}));
 app.use(express.json());
 
 // Database Connection

@@ -3,10 +3,11 @@
 const express = require('express');
 const router = express.Router();
 const { getCrmPool, sql } = require('../config/crmDb');
+const { couponCheckLimiter } = require('../middleware/rateLimit');
 
 // @route   GET /api/ecode/coupon-check?ecode=...
 // @desc    Tra cứu tình trạng sử dụng 1 coupon theo ecode (dbo.fn_CouponUsageBySuffix, CRM instance)
-router.get('/', async (req, res) => {
+router.get('/', couponCheckLimiter, async (req, res) => {
     const ecode = String(req.query.ecode || '').trim();
 
     if (!ecode) {
@@ -26,7 +27,7 @@ router.get('/', async (req, res) => {
         return res.json(result.recordset);
     } catch (err) {
         console.error('[Ecode] coupon-check failed:', err.message);
-        return res.status(500).json({ msg: 'Ecode coupon check failed', error: err.message });
+        return res.status(500).json({ msg: 'Ecode coupon check failed' });
     }
 });
 

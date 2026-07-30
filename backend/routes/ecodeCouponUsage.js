@@ -65,7 +65,7 @@ router.get('/today-live', async (req, res) => {
         return res.json(result);
     } catch (err) {
         console.error('[Ecode] today-live failed:', err.message);
-        return res.status(500).json({ msg: 'Ecode coupon usage (today-live) failed', error: err.message });
+        return res.status(500).json({ msg: 'Ecode coupon usage (today-live) failed' });
     }
 });
 
@@ -125,7 +125,7 @@ router.get('/hourly', async (req, res) => {
         return res.json(result);
     } catch (err) {
         console.error('[Ecode] hourly failed:', err.message);
-        return res.status(500).json({ msg: 'Ecode coupon usage (hourly) failed', error: err.message });
+        return res.status(500).json({ msg: 'Ecode coupon usage (hourly) failed' });
     }
 });
 
@@ -159,7 +159,7 @@ router.get('/kpi', async (req, res) => {
         return res.json(result);
     } catch (err) {
         console.error('[Ecode] kpi failed:', err.message);
-        return res.status(500).json({ msg: 'Ecode coupon usage (kpi) failed', error: err.message });
+        return res.status(500).json({ msg: 'Ecode coupon usage (kpi) failed' });
     }
 });
 
@@ -194,7 +194,7 @@ router.get('/heatmap', async (req, res) => {
         return res.json(result);
     } catch (err) {
         console.error('[Ecode] heatmap failed:', err.message);
-        return res.status(500).json({ msg: 'Ecode coupon usage (heatmap) failed', error: err.message });
+        return res.status(500).json({ msg: 'Ecode coupon usage (heatmap) failed' });
     }
 });
 
@@ -237,7 +237,7 @@ router.get('/daily-trend', async (req, res) => {
         return res.json(result);
     } catch (err) {
         console.error('[Ecode] daily-trend failed:', err.message);
-        return res.status(500).json({ msg: 'Ecode coupon usage (daily-trend) failed', error: err.message });
+        return res.status(500).json({ msg: 'Ecode coupon usage (daily-trend) failed' });
     }
 });
 
@@ -272,7 +272,7 @@ router.get('/monthly', async (req, res) => {
         return res.json(result);
     } catch (err) {
         console.error('[Ecode] monthly failed:', err.message);
-        return res.status(500).json({ msg: 'Ecode coupon usage (monthly) failed', error: err.message });
+        return res.status(500).json({ msg: 'Ecode coupon usage (monthly) failed' });
     }
 });
 
