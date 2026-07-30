@@ -247,7 +247,8 @@ function HistoryBlock() {
         }));
         const ws = XLSX.utils.json_to_sheet(exportRows);
         const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'History');
+        // "History" là tên sheet dành riêng (reserved) trong Excel — SheetJS bản mới sẽ throw nếu dùng.
+        XLSX.utils.book_append_sheet(wb, ws, 'Connection Log');
         const safe = (s) => s.replace('T', ' ').replace(/:/g, '-');
         XLSX.writeFile(wb, `Ref Connection Log (${safe(fromDate)} to ${safe(toDate)}).xlsx`);
     };
