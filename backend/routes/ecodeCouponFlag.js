@@ -5,7 +5,7 @@ const router = express.Router();
 const svgCaptcha = require('svg-captcha');
 const { getCrmPool, sql } = require('../config/crmDb');
 const captchaStore = require('../services/captchaStore');
-const { captchaLimiter } = require('../middleware/rateLimit');
+const { captchaLimiter, toggleFlagLimiter } = require('../middleware/rateLimit');
 
 // Chữ dễ đọc: bỏ hẳn các ký tự dễ nhầm lẫn (I/l/1/L, O/0, U/V/u/v, S/s/5...) khỏi bảng ký tự,
 // thay vì chỉ ignoreChars một phần — ignoreChars vẫn giữ lại làm lớp lọc thứ 2 cho an toàn.
@@ -45,10 +45,7 @@ router.get('/captcha', captchaLimiter, (req, res) => {
 
 // @route   POST /api/ecode/toggle-flag
 // @desc    Toggle FLAGS coupon 49<->51 qua dbo.usp_ToggleCouponFlag, bắt buộc captcha hợp lệ (single-use)
-// TODO(auth): repo hiện chưa có middleware xác thực request (auth.js chỉ validate lúc login,
-// không có JWT/session check trên các route sau đó). Khi có middleware auth thật, gắn vào đây
-// và thay req.user?.username xuống dưới cho đúng người dùng đang đăng nhập.
-router.post('/toggle-flag', async (req, res) => {
+router.post('/toggle-flag', toggleFlagLimiter, async (req, res) => {
     const { couponId, captchaId, captchaAnswer } = req.body || {};
 
     if (!couponId || !/^\d+$/.test(String(couponId))) {
@@ -73,7 +70,7 @@ router.post('/toggle-flag', async (req, res) => {
         // Truyền dạng VarChar để giữ nguyên độ chính xác, SQL Server tự convert ngầm sang BIGINT
         // khi bind vào tham số @CouponId của proc.
         request.input('CouponId', sql.VarChar(20), String(couponId));
-        request.input('ChangedBy', sql.NVarChar(128), req.user?.username ?? 'unknown');
+        request.input('ChangedBy', sql.NVarChar(128), req.user?.email ?? 'unknown');
         request.input('ClientIp', sql.VarChar(45), req.ip);
         request.input('AppName', sql.NVarChar(128), 'WEBREPORTONLINE/EcodeCheck');
 

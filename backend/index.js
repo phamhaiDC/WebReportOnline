@@ -5,8 +5,16 @@ const dotenv = require('dotenv');
 const { connectDB } = require('./config/db');
 const reportsRoutes = require('./routes/reports');
 const authRoutes = require('./routes/auth'); // Import auth routes
+const requireAuth = require('./middleware/requireAuth');
 
 dotenv.config();
+
+// Fail-closed: một hệ thống auth không thể ký/verify token còn nguy hiểm hơn không chạy —
+// dừng ngay lúc khởi động thay vì chạy với requireAuth luôn trả lỗi (hoặc tệ hơn, undefined).
+if (!process.env.JWT_SECRET) {
+    console.error('FATAL: Thiếu JWT_SECRET trong .env — không thể khởi động server.');
+    process.exit(1);
+}
 
 const app = express();
 const PORT = process.env.PORT || 5577;
@@ -50,7 +58,8 @@ app.use(express.json());
 connectDB();
 
 // Routes
-app.use('/api/auth', require('./routes/auth'));
+app.use('/api/auth', require('./routes/auth')); // public — đây là nơi lấy token
+app.use('/api', requireAuth); // mọi route /api/* còn lại đều yêu cầu token hợp lệ
 app.use('/api/reports/connections-monitor', require('./routes/connectionsMonitor'));
 app.use('/api/reports/rk7-usage', require('./routes/rk7Usage'));
 app.use('/api/reports/ref-connection-log', require('./routes/refConnectionLog'));

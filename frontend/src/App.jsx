@@ -54,17 +54,30 @@ function App() {
   const [connectionError, setConnectionError] = useState(null);
   const apiUrl = `${window.location.protocol}//${window.location.hostname}:5577/api/reports`;
 
-  // Check localStorage for existing session on mount
+  // Check localStorage for existing session on mount — cần cả 'user' lẫn 'token' (dữ liệu cũ từ
+  // trước khi có JWT chỉ có 'user' đơn thuần, coi như chưa đăng nhập, buộc đăng nhập lại 1 lần).
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
-    if (storedUser) {
+    const storedToken = localStorage.getItem('token');
+    if (storedUser && storedToken) {
       try {
         setUser(JSON.parse(storedUser));
       } catch (e) {
         console.error('Failed to parse stored user', e);
         localStorage.removeItem('user');
+        localStorage.removeItem('token');
       }
+    } else if (storedUser) {
+      localStorage.removeItem('user');
     }
+  }, []);
+
+  // Backend trả 401 (token thiếu/sai/hết hạn) — api.js phát sự kiện này, đưa về màn Login.
+  useEffect(() => {
+    const onUnauthorized = () => handleLogout();
+    window.addEventListener('auth:unauthorized', onUnauthorized);
+    return () => window.removeEventListener('auth:unauthorized', onUnauthorized);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Fetch reports when user is authenticated
@@ -97,6 +110,7 @@ function App() {
         const userData = response.user;
         setUser(userData);
         localStorage.setItem('user', JSON.stringify(userData));
+        localStorage.setItem('token', response.token);
       } else {
         throw new Error(response.message || 'Login failed');
       }
@@ -108,6 +122,7 @@ function App() {
   const handleLogout = () => {
     setUser(null);
     localStorage.removeItem('user');
+    localStorage.removeItem('token');
     setReports([]);
     setSelectedReportId(null);
   };

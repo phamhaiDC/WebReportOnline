@@ -29,4 +29,14 @@ const couponCheckLimiter = rateLimit({
     message: { msg: 'Quá nhiều yêu cầu tra cứu, vui lòng thử lại sau ít phút' },
 });
 
-module.exports = { loginLimiter, captchaLimiter, couponCheckLimiter };
+// Giới hạn toggle FLAGS coupon — route ghi dữ liệu thật, captcha đã chặn brute-force answer
+// nhưng chưa giới hạn tần suất gọi tổng thể.
+const toggleFlagLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Quá nhiều yêu cầu, vui lòng thử lại sau ít phút' },
+});
+
+module.exports = { loginLimiter, captchaLimiter, couponCheckLimiter, toggleFlagLimiter };

@@ -25,7 +25,9 @@ router.get('/', async (req, res) => {
         return res.status(500).json({ message: 'Superset service account is not configured' });
     }
 
-    // TODO: replace with req.user.tenantId once the app has session/JWT auth wired up
+    // Hệ thống hiện vẫn single-tenant — req.user (từ requireAuth) chưa có field tenantId vì
+    // chưa có model multi-tenant nào trong DB. Khi nào cần multi-tenant thật, thêm tenantId vào
+    // JWT payload lúc login (routes/auth.js) rồi đọc lại ở đây.
     const tenantId = req.user?.tenantId || 'VTI';
     if (!TENANT_ID_REGEX.test(tenantId)) {
         console.error(`[Superset] Rejected invalid tenantId: ${tenantId}`);

@@ -7,13 +7,15 @@
 
 const axios = require('axios');
 const cheerio = require('cheerio');
-const https = require('https');
+const { createPinnedHttpsAgent } = require('./pinnedHttpsAgent');
+const { RK7_SHARED_CERT_FINGERPRINT256 } = require('../config/rk7CertPin');
 
 const DEFAULT_MAX_DEPTH = 6;
 const REQUEST_TIMEOUT_MS = 10000;
 const NOT_APPLICABLE = { status: 'not_applicable' };
 
-const agent = new https.Agent({ rejectUnauthorized: false });
+// Pin theo fingerprint (xem config/rk7CertPin.js) thay vì rejectUnauthorized:false.
+const agent = createPinnedHttpsAgent(RK7_SHARED_CERT_FINGERPRINT256);
 
 // Ví dụ header thật: Reports Server 'VTI_REF_PROD' (PID: 13524, Version: 7.25.12 003 release)
 const HEADER_RE = /Reports Server '(.+?)' \(PID: (\d+), Version: (.+?)\)/;

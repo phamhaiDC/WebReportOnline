@@ -4,6 +4,30 @@ const api = axios.create({
     baseURL: `${window.location.protocol}//${window.location.hostname}:5577/api`,
 });
 
+// Gắn Bearer token (nếu có) vào mọi request — backend yêu cầu cho toàn bộ /api/* trừ /api/auth.
+api.interceptors.request.use((config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+});
+
+// 401 = token thiếu/sai/hết hạn — dọn session cũ và báo cho App.jsx đưa về màn Login. Dùng custom
+// event thay vì import App/React ở đây để tránh phụ thuộc vòng (api.js là module thuần, không phải
+// component).
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 401) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.dispatchEvent(new Event('auth:unauthorized'));
+        }
+        return Promise.reject(error);
+    }
+);
+
 export const getReports = async () => {
     const response = await api.get('/reports');
     return response.data;

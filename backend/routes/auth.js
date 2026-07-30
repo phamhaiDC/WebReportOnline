@@ -1,10 +1,14 @@
 const express = require('express');
 const router = express.Router();
+const jwt = require('jsonwebtoken');
 const { sql } = require('../config/db');
 const axios = require('axios');
 const { loginLimiter } = require('../middleware/rateLimit');
 const { createPinnedHttpsAgent } = require('../services/pinnedHttpsAgent');
+const { RK7_SHARED_CERT_FINGERPRINT256 } = require('../config/rk7CertPin');
 require('dotenv').config();
+
+const JWT_EXPIRES_IN = '8h'; // khớp 1 ca làm việc
 
 // Configuration variables
 //const RK7_API_URL = process.env.RK7_API_URL || 'https://61.28.227.20:3988/rk7api/v0/xmlinterface.xml';
@@ -13,18 +17,9 @@ const RK7_API_URL = process.env.RK7_API_URL || 'https://61.28.235.59:4502/rk7api
 //const RK7_API_URL = process.env.RK7_API_URL || 'https://10.251.14.4:6690/rk7api/v0/xmlinterface.xml';
 const RK7_API_TIMEOUT = parseInt(process.env.RK7_API_TIMEOUT, 10) || 30000;
 
-// Fingerprint SHA-256 của cert TLS server RK7 API ở trên (61.28.235.59:4502) — lấy trực tiếp bằng
-// `openssl s_client -connect 61.28.235.59:4502` ngày 2026-07-30. Cert này tự ký, CN=rk7.local,
-// RSA 1024-bit + SHA1, ĐÃ HẾT HẠN từ 2014 (đi kèm sẵn trong phần mềm RK7, không tự rotate theo deploy)
-// — nên KHÔNG thể bật `rejectUnauthorized: true` bình thường (Node sẽ luôn báo CERT_HAS_EXPIRED).
-// Pin đúng fingerprint này thay vì tắt hẳn xác thực (`rejectUnauthorized: false` cũ) để vẫn chặn được
-// MITM (kẻ tấn công chèn cert KHÁC sẽ bị từ chối), dù bản thân cert gốc vẫn yếu về mặt thuật toán.
-// Nếu RK7_API_URL đổi sang server khác (2 dòng comment phía trên) hoặc vendor thực sự thay cert mới,
-// PHẢI xác minh out-of-band rồi lấy lại fingerprint mới (script trên) và cập nhật hằng số dưới đây.
-const RK7_API_PINNED_CERT_FINGERPRINT256 =
-    'E3:86:05:4B:1B:BC:16:C3:F4:D5:4C:95:D0:3C:B1:CC:D9:7E:31:7B:0B:1A:E7:EC:62:21:79:A7:5A:44:7A:8B';
-
-const httpsAgent = createPinnedHttpsAgent(RK7_API_PINNED_CERT_FINGERPRINT256);
+// Pin đúng fingerprint cert (xem config/rk7CertPin.js — dùng chung cho cả fleet RK7, không riêng
+// host này) thay vì tắt hẳn xác thực (`rejectUnauthorized: false` cũ), để vẫn chặn được MITM.
+const httpsAgent = createPinnedHttpsAgent(RK7_SHARED_CERT_FINGERPRINT256);
 
 // @route   POST /api/auth/login
 // @desc    Authenticate user via SQL validation and RK7 API
@@ -166,13 +161,13 @@ router.post('/login', loginLimiter, async (req, res) => {
         // ============================================================
         console.log(`[Auth] Login successful for: ${email}`);
 
+        const user = { code: CODE, name: Name, email: EMPLOYEEEMAIL };
+        const token = jwt.sign(user, process.env.JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+
         return res.json({
             success: true,
-            user: {
-                code: CODE,
-                name: Name,
-                email: EMPLOYEEEMAIL
-            }
+            token,
+            user
         });
 
     } catch (err) {

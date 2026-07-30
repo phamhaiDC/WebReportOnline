@@ -3,9 +3,14 @@ const router = express.Router();
 const { sql, pgPool } = require('../config/db');
 const axios = require('axios');
 const cheerio = require('cheerio');
-const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const { createPinnedHttpsAgent } = require('../services/pinnedHttpsAgent');
+const { RK7_SHARED_CERT_FINGERPRINT256 } = require('../config/rk7CertPin');
+
+// Dùng chung cho mọi request tới hạ tầng RK7 (masterdata_sources.json) — pin theo fingerprint
+// thay vì rejectUnauthorized:false (xem config/rk7CertPin.js để biết vì sao dùng chung 1 fingerprint).
+const rk7PinnedAgent = createPinnedHttpsAgent(RK7_SHARED_CERT_FINGERPRINT256);
 
 // @route   GET /api/reports
 // @desc    Get list of all available reports grouped by category
@@ -29,11 +34,10 @@ router.get('/params/:type', async (req, res) => {
                     const master = sources.find(s => s.isMaster) || sources[0];
                     if (!master) return res.json([]);
 
-                    const agent = new https.Agent({ rejectUnauthorized: false });
                     const auth = Buffer.from(`${master.user}:${master.pass}`).toString('base64');
                     const response = await axios.get(master.url, {
                         headers: { 'Authorization': `Basic ${auth}` },
-                        httpsAgent: agent,
+                        httpsAgent: rk7PinnedAgent,
                         timeout: 5000
                     });
 
@@ -870,22 +874,18 @@ router.post('/:id', async (req, res) => {
                 const configPath = path.join(__dirname, '../config/masterdata_sources.json');
                 const sources = JSON.parse(fs.readFileSync(configPath, 'utf8'));
 
-                const agent = new https.Agent({
-                    rejectUnauthorized: false
-                });
-
                 const fetchData = async (source) => {
                     try {
                         const auth = Buffer.from(`${source.user}:${source.pass}`).toString('base64');
                         const response = await axios.get(source.url, {
                             headers: { 'Authorization': `Basic ${auth}` },
-                            httpsAgent: agent,
+                            httpsAgent: rk7PinnedAgent,
                             timeout: 10000
                         });
 
                         const $ = cheerio.load(response.data);
                         const rows = [];
-                        // References table structure (7 columns): 
+                        // References table structure (7 columns):
                         // 0:CollectionID, 1:CollectionName, 2:DataVersion, 3:Synchronyzing, 4:ItemsCount, 5:ItemClassName, 6:CollSyncStatus
                         $('table tr').each((i, el) => {
                             const tds = $(el).find('td');
