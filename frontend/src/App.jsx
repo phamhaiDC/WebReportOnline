@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import './App.css';
 import Sidebar from './components/Sidebar';
 import ReportViewer from './components/ReportViewer';
 import Login from './components/Login';
@@ -31,12 +32,9 @@ class ReportErrorBoundary extends React.Component {
   render() {
     if (this.state.error) {
       return (
-        <div style={{
-          padding: '1rem 1.25rem', background: '#fee2e2', border: '1px solid #fca5a5',
-          borderRadius: 8, color: '#991b1b', fontSize: '0.85rem',
-        }}>
+        <div className="report-error-card">
           <strong>⚠ Report "{this.props.reportId}" gặp lỗi khi render:</strong>
-          <div style={{ marginTop: '0.5rem', fontFamily: 'monospace', fontSize: '0.78rem', whiteSpace: 'pre-wrap' }}>
+          <div className="report-error-stack">
             {this.state.error.toString()}
             {this.state.errorInfo && `\n${this.state.errorInfo.componentStack}`}
           </div>
@@ -167,42 +165,30 @@ function App() {
         onSelectReport={setSelectedReportId}
       />
       <div className={`main-content${selectedReportId === 'superset-dashboard' ? ' dashboard-mode' : ''}`}>
-        {/* User Info & Logout */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'flex-end',
-          alignItems: 'center',
-          padding: '1rem 0',
-          marginBottom: '1rem',
-          borderBottom: '1px solid #e5e7eb'
-        }}>
-          <span style={{ marginRight: '1rem', color: '#6b7280', fontSize: '0.9rem' }}>
-            👤 {user.email}
-          </span>
-          <button
-            onClick={handleLogout}
-            style={{
-              padding: '0.5rem 1rem',
-              backgroundColor: '#ef4444',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontWeight: '500',
-              fontSize: '0.875rem'
-            }}
-          >
-            Logout
-          </button>
-        </div>
+        <header className="topbar">
+          <div className="topbar-copy">
+            <span className="eyebrow">Operations workspace</span>
+            <h2>{selectedReport?.name || 'Report'}</h2>
+          </div>
+          <div className="topbar-actions">
+            <span className="status-chip">
+              <span className="status-dot" />
+              Connected
+            </span>
+            <span className="user-pill">{user.email}</span>
+            <button className="ghost-button" onClick={handleLogout}>
+              Logout
+            </button>
+          </div>
+        </header>
 
         {connectionError && (
-          <div style={{ padding: '1rem', backgroundColor: '#fee2e2', color: '#b91c1c', borderBottom: '1px solid #fecaca', marginBottom: '1rem' }}>
-            <strong>Connection Error:</strong> {connectionError}
-            <br />
-            <span style={{ fontSize: '0.8rem', color: '#7f1d1d' }}>Trying to connect to: {apiUrl}</span>
-            <br />
-            <span style={{ fontSize: '0.8rem' }}>Check your Firewall (Port 5577) or Backend Status.</span>
+          <div className="connection-banner">
+            <div>
+              <strong>Connection Error:</strong> {connectionError}
+            </div>
+            <div className="connection-meta">Trying to connect to: {apiUrl}</div>
+            <div className="connection-meta">Check your Firewall (Port 5577) or Backend Status.</div>
           </div>
         )}
         <ReportErrorBoundary key={selectedReportId} reportId={selectedReportId}>

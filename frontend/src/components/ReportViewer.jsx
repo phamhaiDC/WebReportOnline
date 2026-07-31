@@ -1284,6 +1284,17 @@ function ecodeFormatDDMM(dateStr) {
     return `${parts[2]}/${parts[1]}`;
 }
 
+// DATE_FROM/DATE_TO của coupon chỉ mang ý nghĩa ngày hiệu lực (giờ luôn là 00:00:00) — cắt bỏ
+// phần giờ, không hiển thị datetime đầy đủ. Nhận cả ISO ("...T00:00:00.000Z") lẫn chuỗi SQL
+// CONVERT style 120 ("yyyy-MM-dd HH:mm:ss").
+function ecodeFormatDateOnly(dateStr) {
+    if (!dateStr) return '';
+    const datePart = String(dateStr).split(/[T ]/)[0];
+    const [year, month, day] = datePart.split('-');
+    if (!year || !month || !day) return dateStr;
+    return `${day}/${month}/${year}`;
+}
+
 function EcodeKpiCard({ label, value, sub, accent }) {
     return (
         <div style={{ background: '#fff', borderRadius: '10px', boxShadow: '0 1px 6px rgba(0,0,0,.07)', padding: '14px 16px', borderTop: `3px solid ${accent}` }}>
@@ -1667,15 +1678,19 @@ function EcodeCheckCopyButton({ row }) {
     const [copied, setCopied] = useState(false);
 
     const handleCopy = () => {
-        // Copy đúng các cột đang hiển thị trên bảng (Store Name, Ngay Su Dung, BILL, Ecode Id,
-        // Ecode, FLAGS, GHI_CHU) — trước đây copy nhầm field STORE (không còn hiện trên bảng) và
-        // thiếu COUPON_ID/FLAGS (đang hiện trên bảng), khiến nội dung copy lệch với những gì thấy.
+        // Copy đúng các cột đang hiển thị trên bảng (Store Name, Coupon Type, Ngay Su Dung, BILL,
+        // Ecode Id, Ecode, Date From, Date To, FLAGS, GHI_CHU) — trước đây copy nhầm field STORE
+        // (không còn hiện trên bảng) và thiếu COUPON_ID/FLAGS (đang hiện trên bảng), khiến nội
+        // dung copy lệch với những gì thấy.
         const text = [
             `Store Name: ${row.STORENAME ?? ''}`,
+            `Coupon Type: ${row.COUPON_TYPE_NAME ?? ''}`,
             `Ngay Su Dung: ${row.NGAY_SU_DUNG ?? ''}`,
             `BILL: ${row.SO_CHECK ?? ''}`,
             `Ecode Id: ${row.COUPON_ID ?? ''}`,
             `Ecode: ${row.COUPON_CODE ?? ''}`,
+            `Date From: ${ecodeFormatDateOnly(row.DATE_FROM)}`,
+            `Date To: ${ecodeFormatDateOnly(row.DATE_TO)}`,
             `FLAGS: ${row.FLAGS ?? ''}`,
             `GHI_CHU: ${row.GHI_CHU ?? ''}`,
         ].join(' | ');
@@ -2113,7 +2128,7 @@ const EcodeCheckDashboard = () => {
                         <table style={{ minWidth: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
                             <thead style={{ backgroundColor: '#f9fafb' }}>
                                 <tr>
-                                    {[ 'Store Name', 'Ngay Su Dung', 'BILL',  'Ecode Id', 'Ecode', 'FLAGS', 'GHI_CHU', ''].map((col, i) => (
+                                    {[ 'Store Name', 'Ten Ecode', 'Ngay Su Dung', 'BILL', 'Ecode Id', 'Ecode', 'Date From', 'Date To', 'FLAGS', 'GHI_CHU', ''].map((col, i) => (
                                         <th key={col || `copy-${i}`} style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700, color: '#374151', borderBottom: '1px solid #e5e7eb', whiteSpace: 'nowrap' }}>
                                             {col}
                                         </th>
@@ -2123,13 +2138,16 @@ const EcodeCheckDashboard = () => {
                             <tbody>
                                 {results.map((row, idx) => (
                                     <tr key={idx} style={{ background: idx % 2 === 0 ? '#fff' : '#fafafa' }}>
-                                      
+
                                         <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6' }}>{row.STORENAME ?? ''}</td>
+                                        <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6' }}>{row.COUPON_TYPE_NAME ?? ''}</td>
                                         <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6' }}>{row.NGAY_SU_DUNG ?? ''}</td>
                                         <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6' }}>{row.SO_CHECK ?? ''}</td>
-                                        
+
                                         <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6' }}>{row.COUPON_ID ?? ''}</td>
                                         <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6', fontFamily: "'DM Mono', monospace" }}>{row.COUPON_CODE ?? ''}</td>
+                                        <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6' }}>{ecodeFormatDateOnly(row.DATE_FROM)}</td>
+                                        <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6' }}>{ecodeFormatDateOnly(row.DATE_TO)}</td>
                                         <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6' }}>{row.FLAGS ?? ''}</td>
                                         <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6' }}>{row.GHI_CHU ?? ''}</td>
                                         <td style={{ padding: '8px 12px', borderBottom: '1px solid #f3f4f6' }}>
